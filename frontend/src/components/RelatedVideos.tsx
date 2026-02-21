@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns"
 import { buildMediaUrl } from "@/lib/media";
 
 interface RelatedVideosProps {

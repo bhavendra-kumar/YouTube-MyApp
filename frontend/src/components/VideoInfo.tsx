@@ -60,7 +60,7 @@ const VideoInfo = ({ video }: any) => {
     };
 
     socket.on("like:updated", onLikeUpdated);
-    socket.on("dislike:updated", onDislikeUpdated);
+    socket.on("dislike:updated", onDislikeUpdated)
 
     return () => {
       socket.emit("video:leave", video._id);

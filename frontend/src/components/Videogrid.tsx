@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 
 import type { Category } from "@/components/CategoryTab";
 import axiosInstance from "@/lib/axiosinstance";
-import VideoCard from "@/components/VideoCard";
+import VideoCard from "@/components/VideoCard"
 
 type ApiVideo = {
   _id: string;

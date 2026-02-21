@@ -23,7 +23,7 @@ const normalizeOrigin = (value) => {
     const url = new URL(String(value));
     return `${url.protocol}//${url.host}`;
   } catch {
-    return String(value).replace(/\/+$/, "");
+    return String(value).replace(/\/+$/, "")
   }
 };
 

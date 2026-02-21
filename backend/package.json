@@ -8,9 +8,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prestart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1 5001",
     "start": "node index.js",
-    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1 5001",
     "dev": "nodemon index.js",
     "seed:videos": "node scripts/seed-videos.js"
   },

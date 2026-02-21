@@ -15,7 +15,19 @@ import path from "path";
 import http from "http";
 import { Server } from "socket.io";
 
-const frontendOrigin = process.env.FRONTEND_URL;
+const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app";
+
+const normalizeOrigin = (value) => {
+  if (!value) return "";
+  try {
+    const url = new URL(String(value));
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return String(value).replace(/\/+$/, "");
+  }
+};
+
+const frontendOrigin = normalizeOrigin(process.env.FRONTEND_URL) || DEFAULT_FRONTEND_ORIGIN;
 const allowLocalhost = (origin) => {
   try {
     const url = new URL(String(origin));
@@ -45,7 +57,7 @@ app.use(
       // Allow non-browser tools (no origin)
       if (!origin) return cb(null, true);
 
-      if (frontendOrigin && origin === frontendOrigin) return cb(null, true);
+      if (normalizeOrigin(origin) === frontendOrigin) return cb(null, true);
       if (allowLocalhost(origin)) return cb(null, true);
 
       return cb(new Error("Not allowed by CORS"));
@@ -65,7 +77,7 @@ const io = new Server(server, {
   cors: {
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);
-      if (frontendOrigin && origin === frontendOrigin) return cb(null, true);
+      if (normalizeOrigin(origin) === frontendOrigin) return cb(null, true);
       if (allowLocalhost(origin)) return cb(null, true);
       return cb(new Error("Not allowed by CORS"));
     },

@@ -1,0 +1,24 @@
+# Dependencies
+**/node_modules/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Env files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Local backup (created when converting nested git repo)
+.frontend-git-backup*

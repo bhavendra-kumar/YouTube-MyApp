@@ -15,7 +15,7 @@ function requireEnv(name) {
 }
 
 async function main() {
-  const DB_URL = requireEnv("DB_URL");
+  const DB_URL = requireEnv("DB_URL")
 
   await mongoose.connect(DB_URL);
 
@@ -50,9 +50,9 @@ async function main() {
     {
       category: "Music",
       videotitle: "Lo-fi Beats to Code To (Seed)",
-      filename: "video.mp4",
-      filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filename: "video1.mp4",
+      filetype: "video1/mp4",
+      filepath: "uploads/video1.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -65,7 +65,7 @@ async function main() {
       category: "Music",
       videotitle: "Acoustic Session: Weekend Vibes (Seed)",
       filename: "video1.mp4",
-      filetype: "video/mp4",
+      filetype: "video1/mp4",
       filepath: "uploads/video1.mp4",
       filesize: "0",
       videochanel: channelName,

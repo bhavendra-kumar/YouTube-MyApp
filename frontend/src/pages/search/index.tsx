@@ -10,7 +10,7 @@ function getQueryParam(raw: unknown) {
 
 const SearchPage = () => {
   const router = useRouter();
-  const q = getQueryParam(router.query.q).trim();
+  const q = getQueryParam(router.query.search || router.query.q).trim();
   return (
     <div className="flex-1 p-4">
       <div className="max-w-6xl">

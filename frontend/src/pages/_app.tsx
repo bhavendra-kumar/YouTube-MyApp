@@ -1,19 +1,32 @@
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import { Toaster } from "@/components/ui/sonner";
+import Head from "next/head";
+import { Toaster } from "react-hot-toast";
 import "@/styles/globals.css";
-import type { AppProps } from "next/app";
-import { UserProvider } from "../lib/AuthContext";
-export default function App({ Component, pageProps }: AppProps) {
+import type { AppPropsWithAuth } from "@/types/next";
+import { UserProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+
+export default function App({ Component, pageProps }: AppPropsWithAuth) {
+  const content = Component.requireAuth ? (
+    <ProtectedRoute>
+      <Component {...pageProps} />
+    </ProtectedRoute>
+  ) : (
+    <Component {...pageProps} />
+  );
+
   return (
     <UserProvider>
       <div className="min-h-screen bg-white text-black">
-        <title>Your-Tube Clone</title>
+        <Head>
+          <title>YouTube</title>
+        </Head>
         <Header />
         <Toaster />
         <div className="flex">
           <Sidebar />
-          <Component {...pageProps} />
+          {content}
         </div>
       </div>
     </UserProvider>

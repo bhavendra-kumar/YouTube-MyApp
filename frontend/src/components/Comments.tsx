@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { useUser } from "@/lib/AuthContext";
-import axiosInstance from "@/lib/axiosinstance";
+import { useUser } from "@/context/AuthContext";
+import axiosClient from "@/services/http/axios";
 import { getSocket } from "@/lib/socket";
+import { notify } from "@/services/toast";
+import { Skeleton } from "@/components/ui/skeleton";
 interface Comment {
   _id: string;
   videoid: string;
@@ -22,26 +24,15 @@ const Comments = ({ videoId }: any) => {
   const [editText, setEditText] = useState("");
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
-  const fetchedComments = [
-    {
-      _id: "1",
-      videoid: videoId,
-      userid: "1",
-      commentbody: "Great video! Really enjoyed watching this.",
-      usercommented: "John Doe",
-      commentedon: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      _id: "2",
-      videoid: videoId,
-      userid: "2",
-      commentbody: "Thanks for sharing this amazing content!",
-      usercommented: "Jane Smith",
-      commentedon: new Date(Date.now() - 7200000).toISOString(),
-    },
-  ];
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const limit = 20;
+
+  const prevVideoId = useRef<string | null>(null);
+
   useEffect(() => {
-    loadComments();
+    setPage(1);
   }, [videoId]);
 
   useEffect(() => {
@@ -53,6 +44,7 @@ const Comments = ({ videoId }: any) => {
 
     const onNew = (incoming: Comment) => {
       if (!incoming || String(incoming.videoid) !== String(videoId)) return;
+      if (page !== 1) return;
       setComments((prev) =>
         prev.some((c) => c._id === incoming._id) ? prev : [incoming, ...prev]
       );
@@ -80,41 +72,112 @@ const Comments = ({ videoId }: any) => {
       socket.off("comment:updated", onUpdated);
       socket.off("comment:deleted", onDeleted);
     };
-  }, [videoId]);
+  }, [page, videoId]);
 
   const loadComments = async () => {
+    if (!videoId) {
+      setComments([]);
+      setTotalPages(0);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await axiosInstance.get(`/comment/${videoId}`);
-      setComments(res.data);
+      const res = await axiosClient.get(`/comment/${videoId}`, {
+        params: {
+          page,
+          limit,
+        },
+      });
+
+      const items = res.data?.items;
+      setComments(Array.isArray(items) ? items : []);
+
+      const nextTotalPages = Number(res.data?.totalPages ?? 0);
+      const nextCurrentPage = Number(res.data?.currentPage ?? page);
+      setTotalPages(Number.isFinite(nextTotalPages) ? nextTotalPages : 0);
+      prevVideoId.current = String(videoId);
+
+      if (Number.isFinite(nextCurrentPage) && nextCurrentPage > 0 && nextCurrentPage !== page) {
+        setPage(nextCurrentPage);
+      }
     } catch (error) {
       console.log(error);
+      setComments([]);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // If video changed, wait for page reset to 1 before fetching.
+    if (prevVideoId.current && prevVideoId.current !== String(videoId) && page !== 1) return;
+    loadComments();
+  }, [page, videoId]);
+
+  const pageLabel = !totalPages || totalPages <= 1 ? "" : `Page ${page} of ${totalPages}`;
+
   if (loading) {
-    return <div>Loading history...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </div>
+    );
   }
+
   const handleSubmitComment = async () => {
     if (!user || !newComment.trim()) return;
 
     setIsSubmitting(true);
+
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Comment = {
+      _id: tempId,
+      videoid: String(videoId),
+      userid: String(user._id),
+      commentbody: newComment,
+      usercommented: String(user.name || "You"),
+      commentedon: new Date().toISOString(),
+    };
+
+    const previousText = newComment;
+    setNewComment("");
+
+    if (page === 1) {
+      setComments((prev) => [optimistic, ...prev]);
+    } else {
+      setPage(1);
+    }
+
     try {
-      const res = await axiosInstance.post("/comment/postcomment", {
+      const res = await axiosClient.post("/comment/postcomment", {
         videoid: videoId,
         userid: user._id,
-        commentbody: newComment,
+        commentbody: previousText,
         usercommented: user.name,
       });
-      if (res.data?.comment && res.data?.data?._id) {
-        const created: Comment = res.data.data;
-        setComments((prev) =>
-          prev.some((c) => c._id === created._id) ? prev : [created, ...prev]
-        );
+
+      const created: Comment | null = (res.data?.data && res.data.data._id) ? res.data.data : null;
+      if (created) {
+        setComments((prev) => prev.map((c) => (c._id === tempId ? created : c)));
+      } else {
+        // If backend doesn't return the created comment, re-fetch on next page load.
+        setComments((prev) => prev.filter((c) => c._id !== tempId));
+        notify.success("Comment posted");
       }
-      setNewComment("");
     } catch (error) {
       console.error("Error adding comment:", error);
+      setComments((prev) => prev.filter((c) => c._id !== tempId));
+      setNewComment(previousText);
+      notify.error("Could not post comment");
     } finally {
       setIsSubmitting(false);
     }
@@ -128,7 +191,7 @@ const Comments = ({ videoId }: any) => {
   const handleUpdateComment = async () => {
     if (!editText.trim()) return;
     try {
-      const res = await axiosInstance.post(
+      const res = await axiosClient.post(
         `/comment/editcomment/${editingCommentId}`,
         { commentbody: editText }
       );
@@ -143,22 +206,27 @@ const Comments = ({ videoId }: any) => {
       }
     } catch (error) {
       console.log(error);
+      notify.error("Could not update comment");
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await axiosInstance.delete(`/comment/deletecomment/${id}`);
+      const res = await axiosClient.delete(`/comment/deletecomment/${id}`);
       if (res.data.comment) {
         setComments((prev) => prev.filter((c) => c._id !== id));
       }
     } catch (error) {
       console.log(error);
+      notify.error("Could not delete comment");
     }
   };
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">{comments.length} Comments</h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-xl font-semibold">Comments</h2>
+        {pageLabel && <span className="text-sm text-muted-foreground">{pageLabel}</span>}
+      </div>
 
       {user && (
         <div className="flex gap-4">
@@ -257,6 +325,30 @@ const Comments = ({ videoId }: any) => {
           ))
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Prev
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

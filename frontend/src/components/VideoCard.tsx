@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { buildMediaUrl } from "@/lib/media";
+
+dayjs.extend(relativeTime);
 
 type Video = {
   _id?: string;
@@ -24,11 +27,8 @@ export default function VideoCard({ video }: { video?: Video }) {
         ? Number(video?.views)
         : 0;
 
-  const createdAtDate = video?.createdAt ? new Date(video.createdAt) : undefined;
-  const timeAgo =
-    createdAtDate && !Number.isNaN(createdAtDate.getTime())
-      ? `${formatDistanceToNow(createdAtDate)} ago`
-      : "";
+  const createdAt = dayjs(video?.createdAt);
+  const timeAgo = createdAt.isValid() ? createdAt.fromNow() : "";
 
   return (
     <Link href={`/watch/${video?._id ?? ""}`} className="group">

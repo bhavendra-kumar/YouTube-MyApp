@@ -4,8 +4,7 @@ export function buildMediaUrl(path?: string) {
 
   const normalizedPath = String(path).replace(/\\/g, "/");
 
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
-  if (!base) return normalizedPath;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   return `${base.replace(/\/+$/, "")}/${normalizedPath.replace(/^\/+/, "")}`;
 }

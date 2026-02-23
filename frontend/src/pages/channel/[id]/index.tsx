@@ -2,10 +2,10 @@ import ChannelHeader from "@/components/ChannelHeader";
 import Channeltabs from "@/components/Channeltabs";
 import ChannelVideos from "@/components/ChannelVideos";
 import VideoUploader from "@/components/VideoUploader";
-import { useUser } from "@/lib/AuthContext";
+import { useUser } from "@/context/AuthContext";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
-import axiosInstance from "@/lib/axiosinstance";
+import axiosClient from "@/services/http/axios";
 
 const index = () => {
   const router = useRouter();
@@ -22,15 +22,13 @@ const index = () => {
 
     try {
       const [channelRes, videosRes] = await Promise.all([
-        axiosInstance.get(`/user/${channelId}`),
-        axiosInstance.get("/video/getall"),
+        axiosClient.get(`/user/${channelId}`),
+        axiosClient.get("/video/getall", { params: { uploader: channelId, page: 1 } }),
       ]);
       setChannel(channelRes.data);
 
-      const allVideos = Array.isArray(videosRes.data) ? videosRes.data : [];
-      setVideos(
-        allVideos.filter((v: any) => String(v?.uploader) === String(channelId))
-      );
+      const items = videosRes.data?.items;
+      setVideos(Array.isArray(items) ? items : []);
     } catch (e) {
       console.error("Error fetching channel data:", e);
       setChannel(null);
@@ -46,10 +44,16 @@ const index = () => {
 
   useEffect(() => {
     const onUploaded = (event: Event) => {
-      const uploader = (event as CustomEvent<{ uploader?: string }>)?.detail
-        ?.uploader;
+      const detail = (event as CustomEvent<{ uploader?: string; video?: any }>).detail;
+      const uploader = detail?.uploader;
       if (!uploader) return;
       if (String(uploader) !== String(channelId)) return;
+
+      const uploaded = detail?.video;
+      if (uploaded && uploaded._id) {
+        setVideos((prev) => [uploaded, ...prev.filter((v: any) => v._id !== uploaded._id)]);
+        return;
+      }
 
       setLoading(true);
       load();

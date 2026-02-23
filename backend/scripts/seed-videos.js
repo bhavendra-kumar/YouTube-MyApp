@@ -1,13 +1,12 @@
-import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-import User from "../Modals/Auth.js";
-import Video from "../Modals/video.js";
-
-dotenv.config();
+import "../src/config/env.js";
+import { env } from "../src/config/env.js";
+import User from "../src/models/user.js";
+import Video from "../src/models/video.js";
 
 function requireEnv(name) {
-  const value = process.env[name];
+  const value = env[name] ?? process.env[name];
   if (!value) {
     throw new Error(`Missing required env var: ${name}`);
   }
@@ -15,7 +14,7 @@ function requireEnv(name) {
 }
 
 async function main() {
-  const DB_URL = requireEnv("DB_URL")
+  const DB_URL = env.dbUrl || requireEnv("DB_URL");
 
   await mongoose.connect(DB_URL);
 
@@ -52,7 +51,7 @@ async function main() {
       videotitle: "Lo-fi Beats to Code To (Seed)",
       filename: "video1.mp4",
       filetype: "video1/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -66,7 +65,7 @@ async function main() {
       videotitle: "Acoustic Session: Weekend Vibes (Seed)",
       filename: "video1.mp4",
       filetype: "video1/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -82,7 +81,7 @@ async function main() {
       videotitle: "Top 10 Movie Plot Twists (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -96,7 +95,7 @@ async function main() {
       videotitle: "Behind the Scenes: Mini Short Film (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -112,7 +111,7 @@ async function main() {
       videotitle: "Gaming Highlights: Clutch Win (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -126,7 +125,7 @@ async function main() {
       videotitle: "Beginner Tips: Settings That Help (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -142,7 +141,7 @@ async function main() {
       videotitle: "Match Highlights: Last-Minute Winner (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -156,7 +155,7 @@ async function main() {
       videotitle: "Training Drill: Improve Your Sprint (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -172,7 +171,7 @@ async function main() {
       videotitle: "Daily Tech News Roundup (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -188,7 +187,7 @@ async function main() {
       videotitle: "Backend API Demo: /video/getall (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -204,7 +203,7 @@ async function main() {
       videotitle: "When Your Code Works First Try (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -220,7 +219,7 @@ async function main() {
       videotitle: "React + Next.js UI Tour (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -236,7 +235,7 @@ async function main() {
       videotitle: "A Day Trip Guide: Hidden Spots (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -252,7 +251,7 @@ async function main() {
       videotitle: "Quick Recipe: 10-Min Pasta (Seed)",
       filename: "video1.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video1.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -268,7 +267,7 @@ async function main() {
       videotitle: "Style Basics: 5 Outfits, 1 Week (Seed)",
       filename: "video.mp4",
       filetype: "video/mp4",
-      filepath: "uploads/video.mp4",
+      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
       filesize: "0",
       videochanel: channelName,
       uploader: seedUploaderId,
@@ -279,10 +278,20 @@ async function main() {
     },
   ];
 
-  await Video.insertMany(items);
+  // IMPORTANT: The API maintains Like/Dislike counts from the Like/Dislike collections.
+  // Seed data should start with 0 to avoid confusing count resets on first reaction.
+  const normalizedItems = items.map((v) => ({
+    ...v,
+    Like: 0,
+    Dislike: 0,
+  }));
+
+  await Video.insertMany(normalizedItems);
 
   const finalCount = await Video.countDocuments();
-  console.log(`Seeded ${items.length} videos. Total videos now: ${finalCount}`);
+  console.log(
+    `Seeded ${normalizedItems.length} videos. Total videos now: ${finalCount}`
+  );
 }
 
 main()

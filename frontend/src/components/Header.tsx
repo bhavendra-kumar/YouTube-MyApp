@@ -1,7 +1,7 @@
-import React, { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { Bell, Menu, Mic, Search, User, Video } from "lucide-react"
+import { Bell, Menu, Mic, Search, User, Video, X } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -13,33 +13,121 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-
-type HeaderUser = {
-    id: string
-    name: string
-    email: string
-    image: string
-}
+import { useUser } from "@/context/AuthContext"
+import { useDebouncedValue } from "@/hooks/useDebouncedValue"
+import { notify } from "@/services/toast"
 
 const Header = () => {
     const router = useRouter()
 
-    // Replace this with your real auth state later.
-    const user: HeaderUser | null = {
-        id: "1",
-        name: "Bhavendra Kumar",
-        email: "bhavendrakumar007@gmail.com",
-        image: "https://github.com/shadcn.png?height=32&width=32",
+    const { user, logout } = useUser()
+
+    const initialQuery = typeof router.query.search === "string" ? router.query.search : ""
+    const [searchQuery, setSearchQuery] = useState(initialQuery)
+    const debouncedQuery = useDebouncedValue(searchQuery, 450)
+
+    const recognitionRef = useRef<SpeechRecognition | null>(null)
+    const [isListening, setIsListening] = useState(false)
+
+    const stopVoiceSearch = () => {
+        try {
+            recognitionRef.current?.stop()
+        } catch {
+            // ignore
+        }
     }
 
-    const [searchQuery, setSearchQuery] = useState("")
+    const startVoiceSearch = () => {
+        if (typeof window === "undefined") return
+
+        const SpeechRecognitionCtor =
+            window.SpeechRecognition || window.webkitSpeechRecognition
+
+        if (!SpeechRecognitionCtor) {
+            notify.error("Voice search isn't supported in this browser.")
+            return
+        }
+
+        // Toggle behavior: click again to stop.
+        if (isListening) {
+            stopVoiceSearch()
+            return
+        }
+
+        const recognition = recognitionRef.current || new SpeechRecognitionCtor()
+        recognitionRef.current = recognition
+
+        recognition.lang = "en-US"
+        recognition.interimResults = false
+        recognition.maxAlternatives = 1
+
+        recognition.onstart = () => setIsListening(true)
+        recognition.onend = () => setIsListening(false)
+        recognition.onerror = () => {
+            setIsListening(false)
+            notify.error("Voice search failed. Please try again.")
+        }
+        recognition.onresult = (event) => {
+            const transcript = event?.results?.[0]?.[0]?.transcript
+            const query = String(transcript || "").trim()
+            if (!query) return
+
+            setSearchQuery(query)
+
+            const target = router.pathname === "/search" ? "/search" : "/"
+            void router.push(`${target}?search=${encodeURIComponent(query)}`)
+        }
+
+        try {
+            recognition.start()
+        } catch {
+            // Can throw if already started
+            notify.error("Voice search is already running.")
+        }
+    }
+
+    useEffect(() => {
+        return () => {
+            try {
+                recognitionRef.current?.stop()
+            } catch {
+                // ignore
+            }
+        }
+    }, [])
+
+    useEffect(() => {
+        if (typeof router.query.search === "string") {
+            setSearchQuery(router.query.search)
+        }
+        if (!router.query.search) {
+            setSearchQuery("")
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [router.query.search])
+
+    useEffect(() => {
+        if (!router.isReady) return
+        const q = debouncedQuery.trim()
+        // Only drive debounced search when user is on home or searching.
+        // Keeps behavior predictable and avoids surprise navigation.
+        if (router.pathname !== "/" && router.pathname !== "/search") return
+
+        const nextQuery = q ? { ...router.query, search: q } : (() => {
+            const { search, ...rest } = router.query
+            return rest
+        })()
+
+        void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedQuery])
 
     const onSearch = (e: React.FormEvent) => {
         e.preventDefault()
         const query = searchQuery.trim()
         if (!query) return
-        // Keep the user on the homepage (no missing-route 404s).
-        void router.push(`/?search=${encodeURIComponent(query)}`)
+        const target = router.pathname === "/search" ? "/search" : "/"
+        void router.push(`${target}?search=${encodeURIComponent(query)}`)
     }
 
     return (
@@ -95,12 +183,63 @@ const Header = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="rounded-full"
+                    className={
+                        `relative rounded-full ${isListening ? "bg-muted" : ""}`
+                    }
                     aria-label="Voice search"
+                    aria-pressed={isListening}
+                    onClick={startVoiceSearch}
                 >
-                    <Mic className="size-5" />
+                    {isListening ? (
+                        <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-muted-foreground/30 animate-ping"
+                        />
+                    ) : null}
+                    <Mic className="relative size-5" />
                 </Button>
             </form>
+
+            {isListening ? (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Voice search listening"
+                    onMouseDown={(e) => {
+                        // Click outside closes
+                        if (e.target === e.currentTarget) stopVoiceSearch()
+                    }}
+                >
+                    <div className="relative w-full max-w-2xl rounded-2xl bg-zinc-900 px-8 py-10 text-white shadow-lg">
+                        <button
+                            type="button"
+                            className="absolute right-5 top-5 rounded-full p-2 hover:bg-white/10"
+                            aria-label="Close voice search"
+                            onClick={stopVoiceSearch}
+                        >
+                            <X className="size-5" />
+                        </button>
+
+                        <div className="text-3xl font-medium">Listening...</div>
+
+                        <div className="mt-16 flex items-center justify-center">
+                            <button
+                                type="button"
+                                aria-label="Stop listening"
+                                onClick={stopVoiceSearch}
+                                className="group relative flex size-16 items-center justify-center rounded-full bg-red-600"
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className="absolute -inset-3 rounded-full bg-red-600/20 animate-ping"
+                                />
+                                <Mic className="relative size-7 text-white" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <div className="flex items-center gap-1">
                 {user ? (
@@ -121,9 +260,9 @@ const Header = () => {
                                     aria-label="Account menu"
                                 >
                                     <Avatar>
-                                        <AvatarImage src={user.image} alt={user.name} />
+                                        <AvatarImage src={user.image || ""} alt={user.name || "User"} />
                                         <AvatarFallback>
-                                            {user.name.charAt(0).toUpperCase()}
+                                            {String(user.name || "U").charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>
@@ -131,28 +270,28 @@ const Header = () => {
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        // TODO: Navigate when channel pages exist.
+                                        void router.push(`/channel/${user._id}`)
                                     }}
                                 >
                                     Your channel
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        // TODO: Navigate when history page exists.
+                                        void router.push("/history")
                                     }}
                                 >
                                     History
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        // TODO: Navigate when liked page exists.
+                                        void router.push("/liked")
                                     }}
                                 >
                                     Liked videos
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        // TODO: Navigate when watch-later page exists.
+                                        void router.push("/watch-later")
                                     }}
                                 >
                                     Watch later
@@ -160,7 +299,7 @@ const Header = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onSelect={() => {
-                                        // TODO: Wire this to your auth later.
+                                        void logout()
                                     }}
                                 >
                                     Sign out
@@ -173,7 +312,7 @@ const Header = () => {
                         variant="outline"
                         className="gap-2"
                         onClick={() => {
-                            void router.push("/signin")
+                            void router.push("/login")
                         }}
                     >
                         <User className="size-4" />

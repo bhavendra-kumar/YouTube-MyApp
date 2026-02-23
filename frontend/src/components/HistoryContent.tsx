@@ -12,12 +12,42 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import axiosInstance from "@/lib/axiosinstance";
-import { useUser } from "@/lib/AuthContext";
+import axiosClient from "@/services/http/axios";
+import { useUser } from "@/context/AuthContext";
+import { notify } from "@/services/toast";
+import ErrorState from "@/components/ErrorState";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function sortAndDedupeMostRecent(items: any[]) {
+  const map = new Map<string, any>();
+  for (const item of items || []) {
+    const videoId = String(item?.videoid?._id ?? item?.videoid ?? item?._id ?? "");
+    if (!videoId) continue;
+
+    const existing = map.get(videoId);
+    if (!existing) {
+      map.set(videoId, item);
+      continue;
+    }
+
+    const a = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+    const b = new Date(existing?.updatedAt || existing?.createdAt || 0).getTime();
+    if (Number.isFinite(a) && Number.isFinite(b) && a > b) {
+      map.set(videoId, item);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    const ta = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+    const tb = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+    return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+  });
+}
 
 export default function HistoryContent() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
 
   useEffect(() => {
@@ -32,27 +62,56 @@ export default function HistoryContent() {
     if (!user) return;
 
     try {
-      const historyData = await axiosInstance.get(`/history/${user?._id}`);
-      setHistory(historyData.data);
+      setError(null);
+      const historyData = await axiosClient.get(`/history/${user?._id}`);
+      const list = Array.isArray(historyData.data) ? historyData.data : [];
+      setHistory(sortAndDedupeMostRecent(list));
     } catch (error) {
       console.error("Error loading history:", error);
+      setError("Could not load watch history.");
     } finally {
       setLoading(false);
     }
   };
   if (loading) {
-    return <div>Loading history...</div>;
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    );
   }
 
   const handleRemoveFromHistory = async (historyId: string) => {
     try {
-      console.log("Removing from history:", historyId);
-
-      setHistory(history.filter((item) => item._id !== historyId));
+      await axiosClient.delete(`/history/item/${historyId}`);
+      setHistory((prev) => prev.filter((item) => item._id !== historyId));
+      notify.success("Removed from watch history");
     } catch (error) {
       console.error("Error removing from history:", error);
+      notify.error("Could not remove from watch history");
     }
   };
+
+  const handleClearHistory = async () => {
+    if (!user?._id) return;
+    const ok = typeof window !== "undefined" ? window.confirm("Clear all watch history?") : false;
+    if (!ok) return;
+
+    try {
+      await axiosClient.delete("/history/clear");
+      setHistory([]);
+      notify.success("Watch history cleared");
+    } catch (err) {
+      console.error("Error clearing history:", err);
+      notify.error("Could not clear watch history");
+    }
+  };
+
+  if (error) {
+    return <ErrorState title="Watch history" message={error} onRetry={loadHistory} />;
+  }
 
   if (!user) {
     return (
@@ -77,11 +136,14 @@ export default function HistoryContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600">{history.length} videos</p>
+        <Button variant="outline" size="sm" onClick={handleClearHistory}>
+          Clear all
+        </Button>
       </div>
 
       <div className="space-y-4">

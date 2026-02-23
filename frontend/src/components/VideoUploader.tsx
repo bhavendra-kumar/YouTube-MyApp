@@ -1,29 +1,42 @@
 import { Check, FileVideo, Upload, X } from "lucide-react";
-import React, { ChangeEvent, useRef, useState } from "react";
-import { toast } from "sonner";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
-import axiosInstance from "@/lib/axiosinstance";
+import axiosClient from "@/services/http/axios";
+import { useUser } from "@/context/AuthContext";
+import { notify } from "@/services/toast";
 
 const VideoUploader = ({ channelId, channelName }: any) => {
+  const router = useRouter();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [uploadComplete, setUploadComplete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const handlefilechange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
       if (!file.type.startsWith("video/")) {
-        toast.error("Please upload a valid video file.");
+        notify.error("Please upload a valid video file.");
         return;
       }
       if (file.size > 100 * 1024 * 1024) {
-        toast.error("File size exceeds 100MB limit.");
+        notify.error("File size exceeds 100MB limit.");
         return;
       }
       setVideoFile(file);
@@ -33,8 +46,25 @@ const VideoUploader = ({ channelId, channelName }: any) => {
       }
     }
   };
+
+  const handleThumbnailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (!file.type.startsWith("image/")) {
+        notify.error("Please upload a valid image thumbnail.");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        notify.error("Thumbnail size exceeds 5MB limit.");
+        return;
+      }
+      setThumbnailFile(file);
+    }
+  };
   const resetForm = () => {
     setVideoFile(null);
+    setThumbnailFile(null);
     setVideoTitle("");
     setIsUploading(false);
     setUploadProgress(0);
@@ -42,27 +72,32 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    if (thumbnailInputRef.current) {
+      thumbnailInputRef.current.value = "";
+    }
   };
   const cancelUpload = () => {
     if (isUploading) {
-      toast.error("Your video upload has been cancelled");
+      notify.error("Your video upload has been cancelled");
     }
   };
   const handleUpload = async () => {
     if (!videoFile || !videoTitle.trim()) {
-      toast.error("Please provide file and title");
+      notify.error("Please provide file and title");
       return;
     }
     const formdata = new FormData();
     formdata.append("file", videoFile);
+    if (thumbnailFile) {
+      formdata.append("thumbnail", thumbnailFile);
+    }
     formdata.append("videotitle", videoTitle);
     formdata.append("videochanel", channelName);
     formdata.append("uploader", channelId);
-    console.log(formdata)
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      const res = await axiosInstance.post("/video/upload", formdata, {
+      const res = await axiosClient.post("/video/upload", formdata, {
          headers: {
     "Content-Type": "multipart/form-data", // ✅ MUST for FormData
   },
@@ -73,12 +108,15 @@ const VideoUploader = ({ channelId, channelName }: any) => {
           setUploadProgress(progress);
         },
       });
-      toast.success("Upload successfully");
+      notify.success("Video uploaded successfully!");
 
       if (typeof window !== "undefined") {
+        const uploadedVideo =
+          res?.data && typeof res.data === "object" ? res.data : null;
+
         window.dispatchEvent(
           new CustomEvent("video:uploaded", {
-            detail: { uploader: channelId },
+            detail: { uploader: channelId, video: uploadedVideo },
           })
         );
       }
@@ -86,7 +124,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
       resetForm();
     } catch (error) {
       console.error("Error uploading video:", error);
-      toast.error("There was an error uploading your video. Please try again.");
+      notify.error("There was an error uploading your video. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -154,6 +192,40 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                   disabled={isUploading || uploadComplete}
                   className="mt-1"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="thumbnail">Thumbnail (optional)</Label>
+                <div className="mt-1 flex gap-2 items-center">
+                  <Input
+                    id="thumbnail"
+                    type="file"
+                    ref={thumbnailInputRef}
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                    disabled={isUploading || uploadComplete}
+                  />
+                  {thumbnailFile ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setThumbnailFile(null);
+                        if (thumbnailInputRef.current) {
+                          thumbnailInputRef.current.value = "";
+                        }
+                      }}
+                      disabled={isUploading || uploadComplete}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                {thumbnailFile ? (
+                  <p className="text-xs text-gray-500 mt-1 truncate">
+                    Selected: {thumbnailFile.name}
+                  </p>
+                ) : null}
               </div>
             </div>
 

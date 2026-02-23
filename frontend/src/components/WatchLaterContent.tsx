@@ -12,12 +12,39 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import axiosInstance from "@/lib/axiosinstance";
-import { useUser } from "@/lib/AuthContext";
+import axiosClient from "@/services/http/axios";
+import { useUser } from "@/context/AuthContext";
+import { notify } from "@/services/toast";
+import ErrorState from "@/components/ErrorState";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function sortAndDedupeMostRecent(items: any[]) {
+  const map = new Map<string, any>();
+  for (const item of items || []) {
+    const videoId = String(item?.videoid?._id ?? item?.videoid ?? item?._id ?? "");
+    if (!videoId) continue;
+    const existing = map.get(videoId);
+    if (!existing) {
+      map.set(videoId, item);
+      continue;
+    }
+    const a = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+    const b = new Date(existing?.updatedAt || existing?.createdAt || 0).getTime();
+    if (Number.isFinite(a) && Number.isFinite(b) && a > b) {
+      map.set(videoId, item);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    const ta = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+    const tb = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+    return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+  });
+}
 
 export default function WatchLaterContent() {
   const [watchLater, setWatchLater] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
 
   useEffect(() => {
@@ -30,27 +57,44 @@ export default function WatchLaterContent() {
     if (!user) return;
 
     try {
-      const watchLaterData = await axiosInstance.get(`/watch/${user?._id}`);
+      setError(null);
+      const watchLaterData = await axiosClient.get(`/watch/${user?._id}`);
 
-      setWatchLater(watchLaterData.data);
+      const list = Array.isArray(watchLaterData.data) ? watchLaterData.data : [];
+      setWatchLater(sortAndDedupeMostRecent(list));
     } catch (error) {
       console.error("Error loading history:", error);
+      setError("Could not load Watch later.");
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div>Loading watch later...</div>;
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    );
   }
-  const handleRemoveFromWatchLater = async (watchLaterId: string) => {
+
+  const handleRemoveFromWatchLater = async (watchLaterId: string, videoId: string) => {
     try {
-      console.log("Removing from history:", watchLaterId);
-      setWatchLater(watchLater.filter((item) => item._id !== watchLaterId));
+      // Toggle endpoint removes when it already exists.
+      await axiosClient.post(`/watch/${videoId}`);
+      setWatchLater((prev) => prev.filter((item) => item._id !== watchLaterId));
+      notify.success("Removed from Watch later");
     } catch (error) {
       console.error("Error removing from history:", error);
+      notify.error("Could not remove from Watch later");
     }
   };
+
+  if (error) {
+    return <ErrorState title="Watch later" message={error} onRetry={loadWatchLater} />;
+  }
 
   if (!user) {
     return (
@@ -75,7 +119,7 @@ export default function WatchLaterContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -128,7 +172,7 @@ export default function WatchLaterContent() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => handleRemoveFromWatchLater(item._id)}
+                  onClick={() => handleRemoveFromWatchLater(item._id, item?.videoid?._id)}
                 >
                   <X className="w-4 h-4 mr-2" />
                   Remove from Watch later

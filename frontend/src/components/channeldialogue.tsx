@@ -11,8 +11,9 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import axiosInstance from "@/lib/axiosinstance";
-import { useUser } from "@/lib/AuthContext";
+import axiosClient from "@/services/http/axios";
+import { useUser } from "@/context/AuthContext";
+import { notify } from "@/services/toast";
 
 const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
   const { user, login } = useUser();
@@ -49,21 +50,30 @@ const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
   };
   const handlesubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!user?._id) return;
+
     const payload = {
       channelname: formData.name,
       description: formData.description,
     };
-    const response = await axiosInstance.patch(
-      `/user/update/${user._id}`,
-      payload
-    );
-    login(response?.data);
-    router.push(`/channel/${user?._id}`);
-    setFormData({
-      name: "",
-      description: "",
-    });
-    onclose();
+
+    try {
+      setisSubmitting(true);
+      const response = await axiosClient.patch(`/user/update/${user._id}`, payload);
+      login(response?.data);
+      notify.success("Channel updated");
+      router.push(`/channel/${user?._id}`);
+      setFormData({
+        name: "",
+        description: "",
+      });
+      onclose();
+    } catch (e) {
+      console.error(e);
+      notify.error("Could not update channel");
+    } finally {
+      setisSubmitting(false);
+    }
   };
   return (
     <Dialog open={isopen} onOpenChange={onclose}>

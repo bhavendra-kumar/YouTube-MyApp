@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import {
@@ -10,16 +10,16 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useUser } from "@/lib/AuthContext";
-import axiosInstance from "@/lib/axiosinstance";
+import { useUser } from "@/context/AuthContext";
+import axiosClient from "@/services/http/axios";
 import { getSocket } from "@/lib/socket";
-import { toast } from "sonner";
+import { notify } from "@/services/toast";
 import Link from "next/link";
 import { buildMediaUrl } from "@/lib/media";
 
 const VideoInfo = ({ video }: any) => {
-  const [likes, setlikes] = useState(video.Like || 0);
-  const [dislikes, setDislikes] = useState(video.Dislike || 0);
+  const [likes, setlikes] = useState<number>(Number(video?.Like ?? 0));
+  const [dislikes, setDislikes] = useState<number>(Number(video?.Dislike ?? 0));
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -27,6 +27,7 @@ const VideoInfo = ({ video }: any) => {
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
+  const lastHistoryKeyRef = useRef<string | null>(null);
 
   // const user: any = {
   //   id: "1",
@@ -35,8 +36,8 @@ const VideoInfo = ({ video }: any) => {
   //   image: "https://github.com/shadcn.png?height=32&width=32",
   // };
   useEffect(() => {
-    setlikes(video.Like || 0);
-    setDislikes(video.Dislike || 0);
+    setlikes(Number(video?.Like ?? 0));
+    setDislikes(Number(video?.Dislike ?? 0));
     setIsLiked(false);
     setIsDisliked(false);
     setIsWatchLater(false);
@@ -76,7 +77,7 @@ const VideoInfo = ({ video }: any) => {
       try {
         // Subscriber count works even without login.
         if (video?.uploader) {
-          const countRes = await axiosInstance.get(
+          const countRes = await axiosClient.get(
             `/subscribe/count/${video.uploader}`
           );
           setSubscriberCount(Number(countRes.data?.subscribers ?? 0));
@@ -87,10 +88,10 @@ const VideoInfo = ({ video }: any) => {
         if (!user?._id) return;
 
         const [reactionRes, watchLaterRes, subscribeRes] = await Promise.all([
-          axiosInstance.get(`/like/status/${video._id}/${user._id}`),
-          axiosInstance.get(`/watch/status/${video._id}/${user._id}`),
+          axiosClient.get(`/like/status/${video._id}/${user._id}`),
+          axiosClient.get(`/watch/status/${video._id}/${user._id}`),
           video?.uploader
-            ? axiosInstance.get(`/subscribe/status/${video.uploader}/${user._id}`)
+            ? axiosClient.get(`/subscribe/status/${video.uploader}/${user._id}`)
             : Promise.resolve({ data: { subscribed: false, subscribers: 0 } }),
         ]);
 
@@ -112,73 +113,160 @@ const VideoInfo = ({ video }: any) => {
   useEffect(() => {
     const handleviews = async () => {
       if (!video?._id) return;
+
+      // Client-side idempotency guard to avoid duplicate rows due to re-renders.
+      const key = `${String(user?._id || "guest")}:${String(video._id)}`;
+      if (lastHistoryKeyRef.current === key) return;
+      lastHistoryKeyRef.current = key;
+
       if (user) {
         try {
-          return await axiosInstance.post(`/history/${video._id}`, {
+          return await axiosClient.post(`/history/${video._id}`, {
             userId: user?._id,
           });
         } catch (error) {
           return console.log(error);
         }
       } else {
-        return await axiosInstance.post(`/history/views/${video?._id}`);
+        return await axiosClient.post(`/history/views/${video?._id}`);
       }
     };
     handleviews();
-  }, [user, video?._id]);
+  }, [user?._id, video?._id]);
+
+  const applyReactionResponse = (payload: any) => {
+    if (!payload || typeof payload !== "object") return;
+
+    setIsLiked(Boolean(payload.liked));
+    setIsDisliked(Boolean(payload.disliked));
+
+    const nextLikes =
+      typeof payload.likesCount === "number"
+        ? payload.likesCount
+        : typeof payload.likes === "number"
+          ? payload.likes
+          : typeof payload.videoLike === "number"
+            ? payload.videoLike
+            : undefined;
+
+    const nextDislikes =
+      typeof payload.dislikesCount === "number"
+        ? payload.dislikesCount
+        : typeof payload.dislikes === "number"
+          ? payload.dislikes
+          : typeof payload.videoDislike === "number"
+            ? payload.videoDislike
+            : undefined;
+
+    if (typeof nextLikes === "number") setlikes(nextLikes);
+    if (typeof nextDislikes === "number") setDislikes(nextDislikes);
+  };
 
   const handleLike = async () => {
     if (!user) {
-      toast("Sign in to like videos");
+      notify.info("Sign in to like videos");
       return;
     }
+    if (!video?._id) return;
+
+    const prev = {
+      likes,
+      dislikes,
+      isLiked,
+      isDisliked,
+    };
+
+    // Optimistic UI
+    if (isLiked) {
+      setIsLiked(false);
+      setlikes((n) => Math.max(0, n - 1));
+    } else {
+      setIsLiked(true);
+      setlikes((n) => n + 1);
+      if (isDisliked) {
+        setIsDisliked(false);
+        setDislikes((n) => Math.max(0, n - 1));
+      }
+    }
+
     try {
-      const res = await axiosInstance.post(`/like/${video._id}`, {
+      const res = await axiosClient.post(`/like/${video._id}`, {
         userId: user?._id,
         type: "like",
       });
 
-      setIsLiked(Boolean(res.data?.liked));
-      setIsDisliked(Boolean(res.data?.disliked));
-      if (typeof res.data?.likes === "number") setlikes(res.data.likes);
-      if (typeof res.data?.dislikes === "number") setDislikes(res.data.dislikes);
+      applyReactionResponse(res.data);
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      setlikes(prev.likes);
+      setDislikes(prev.dislikes);
+      setIsLiked(prev.isLiked);
+      setIsDisliked(prev.isDisliked);
+      notify.error("Could not update like");
     }
   };
 
   const handleWatchLater = async () => {
     if (!user) {
-      toast("Sign in to save videos");
+      notify.info("Sign in to save videos");
       return;
     }
+
+    const prev = isWatchLater;
+    setIsWatchLater((v) => !v);
     try {
-      const res = await axiosInstance.post(`/watch/${video._id}`, {
+      const res = await axiosClient.post(`/watch/${video._id}`, {
         userId: user?._id,
       });
       setIsWatchLater(Boolean(res.data?.watchlater));
     } catch (error) {
       console.log(error);
+      setIsWatchLater(prev);
+      notify.error("Could not update Watch Later");
     }
   };
 
   const handleDislike = async () => {
     if (!user) {
-      toast("Sign in to dislike videos");
+      notify.info("Sign in to dislike videos");
       return;
     }
+    if (!video?._id) return;
+
+    const prev = {
+      likes,
+      dislikes,
+      isLiked,
+      isDisliked,
+    };
+
+    // Optimistic UI
+    if (isDisliked) {
+      setIsDisliked(false);
+      setDislikes((n) => Math.max(0, n - 1));
+    } else {
+      setIsDisliked(true);
+      setDislikes((n) => n + 1);
+      if (isLiked) {
+        setIsLiked(false);
+        setlikes((n) => Math.max(0, n - 1));
+      }
+    }
+
     try {
-      const res = await axiosInstance.post(`/like/${video._id}`, {
+      const res = await axiosClient.post(`/like/${video._id}`, {
         userId: user?._id,
         type: "dislike",
       });
 
-      setIsLiked(Boolean(res.data?.liked));
-      setIsDisliked(Boolean(res.data?.disliked));
-      if (typeof res.data?.likes === "number") setlikes(res.data.likes);
-      if (typeof res.data?.dislikes === "number") setDislikes(res.data.dislikes);
+      applyReactionResponse(res.data);
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      setlikes(prev.likes);
+      setDislikes(prev.dislikes);
+      setIsLiked(prev.isLiked);
+      setIsDisliked(prev.isDisliked);
+      notify.error("Could not update dislike");
     }
   };
 
@@ -189,7 +277,7 @@ const VideoInfo = ({ video }: any) => {
 
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        toast("Link copied");
+        notify.success("Link copied");
         return;
       }
 
@@ -197,7 +285,7 @@ const VideoInfo = ({ video }: any) => {
       prompt("Copy this link:", url);
     } catch (e) {
       console.error(e);
-      toast("Could not copy link");
+      notify.error("Could not copy link");
     }
   };
 
@@ -209,13 +297,27 @@ const VideoInfo = ({ video }: any) => {
 
   const handleSubscribe = async () => {
     if (!user) {
-      toast("Sign in to subscribe");
+      notify.info("Sign in to subscribe");
       return;
     }
     if (!video?.uploader) return;
 
+    const prev = {
+      isSubscribed,
+      subscriberCount,
+    };
+
+    // Optimistic UI
+    if (isSubscribed) {
+      setIsSubscribed(false);
+      setSubscriberCount((n) => Math.max(0, n - 1));
+    } else {
+      setIsSubscribed(true);
+      setSubscriberCount((n) => n + 1);
+    }
+
     try {
-      const res = await axiosInstance.post(`/subscribe/${video.uploader}`, {
+      const res = await axiosClient.post(`/subscribe/${video.uploader}`, {
         userId: user?._id,
       });
       setIsSubscribed(Boolean(res.data?.subscribed));
@@ -224,12 +326,82 @@ const VideoInfo = ({ video }: any) => {
       }
     } catch (e) {
       console.error(e);
+      setIsSubscribed(prev.isSubscribed);
+      setSubscriberCount(prev.subscriberCount);
+      notify.error("Could not update subscription");
     }
   };
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{video.videotitle}</h1>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
+          <span>{Number(video?.views || 0).toLocaleString()} views</span>
+          <span>•</span>
+          <span>
+            {video?.createdAt
+              ? `${formatDistanceToNow(new Date(video.createdAt))} ago`
+              : ""}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center bg-gray-100 rounded-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-l-full"
+              onClick={handleLike}
+            >
+              <ThumbsUp className={`w-5 h-5 mr-2 ${isLiked ? "fill-black text-black" : ""}`} />
+              {Number(likes || 0).toLocaleString()}
+            </Button>
+            <div className="w-px h-6 bg-gray-300" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-r-full"
+              onClick={handleDislike}
+            >
+              <ThumbsDown className={`w-5 h-5 mr-2 ${isDisliked ? "fill-black text-black" : ""}`} />
+              {Number(dislikes || 0).toLocaleString()}
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`bg-gray-100 rounded-full ${isWatchLater ? "text-primary" : ""}`}
+            onClick={handleWatchLater}
+          >
+            <Clock className="w-5 h-5 mr-2" />
+            {isWatchLater ? "Saved" : "Watch Later"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-gray-100 rounded-full"
+            onClick={handleShare}
+          >
+            <Share className="w-5 h-5 mr-2" />
+            Share
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-gray-100 rounded-full"
+            onClick={handleDownload}
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Download
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-gray-100 rounded-full">
+            <MoreHorizontal className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -259,93 +431,26 @@ const VideoInfo = ({ video }: any) => {
             </Button>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-gray-100 rounded-full">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-l-full"
-              onClick={handleLike}
-            >
-              <ThumbsUp
-                className={`w-5 h-5 mr-2 ${
-                  isLiked ? "fill-black text-black" : ""
-                }`}
-              />
-              {likes.toLocaleString()}
-            </Button>
-            <div className="w-px h-6 bg-gray-300" />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-r-full"
-              onClick={handleDislike}
-            >
-              <ThumbsDown
-                className={`w-5 h-5 mr-2 ${
-                  isDisliked ? "fill-black text-black" : ""
-                }`}
-              />
-              {dislikes.toLocaleString()}
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`bg-gray-100 rounded-full ${
-              isWatchLater ? "text-primary" : ""
-            }`}
-            onClick={handleWatchLater}
-          >
-            <Clock className="w-5 h-5 mr-2" />
-            {isWatchLater ? "Saved" : "Watch Later"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="bg-gray-100 rounded-full"
-            onClick={handleShare}
-          >
-            <Share className="w-5 h-5 mr-2" />
-            Share
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="bg-gray-100 rounded-full"
-            onClick={handleDownload}
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Download
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="bg-gray-100 rounded-full"
-          >
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
-        </div>
       </div>
+
       <div className="bg-gray-100 rounded-lg p-4">
-        <div className="flex gap-4 text-sm font-medium mb-2">
-          <span>{video.views.toLocaleString()} views</span>
-          <span>{formatDistanceToNow(new Date(video.createdAt))} ago</span>
-        </div>
-        <div className={`text-sm ${showFullDescription ? "" : "line-clamp-3"}`}>
-          <p>
-            Sample video description. This would contain the actual video
-            description from the database.
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-2 p-0 h-auto font-medium"
-          onClick={() => setShowFullDescription(!showFullDescription)}
-        >
-          {showFullDescription ? "Show less" : "Show more"}
-        </Button>
+        {String(video?.description || "").trim() ? (
+          <>
+            <div className={`text-sm ${showFullDescription ? "" : "line-clamp-3"}`}>
+              <p>{String(video?.description || "")}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 p-0 h-auto font-medium"
+              onClick={() => setShowFullDescription(!showFullDescription)}
+            >
+              {showFullDescription ? "Show less" : "Show more"}
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-gray-600">No description.</p>
+        )}
       </div>
     </div>
   );

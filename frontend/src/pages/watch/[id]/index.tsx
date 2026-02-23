@@ -1,36 +1,38 @@
 import Comments from "@/components/Comments";
+import ErrorState from "@/components/ErrorState";
 import RelatedVideos from "@/components/RelatedVideos";
 import VideoInfo from "@/components/VideoInfo";
 import Videopplayer from "@/components/Videopplayer";
-import axiosInstance from "@/lib/axiosinstance";
 import { useRouter } from "next/router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect } from "react";
+
+import WatchPageSkeleton from "@/features/watch/components/WatchPageSkeleton";
+import { useWatchPageData } from "@/features/watch/hooks/useWatchPageData";
 
 const index = () => {
   const router = useRouter();
   const { id } = router.query;
-  const [currentVideo, setCurrentVideo] = useState<any>(null);
-  const [allVideos, setAllVideos] = useState<any[]>([]);
-  const [loading, setloading] = useState(true);
+
+  const videoId = router.isReady && typeof id === "string" ? id : null;
+  const { video: currentVideo, relatedVideos, loading, error, reload } = useWatchPageData<any>(videoId);
+
   useEffect(() => {
-    const fetchvideo = async () => {
-      if (!router.isReady) return;
-      if (!id || typeof id !== "string") return;
-      try {
-        const [videoRes, allRes] = await Promise.all([
-          axiosInstance.get(`/video/${id}`),
-          axiosInstance.get("/video/getall"),
-        ]);
-        setCurrentVideo(videoRes.data);
-        setAllVideos(Array.isArray(allRes.data) ? allRes.data : []);
-      } catch (error) {
-        console.log(error);
-      } finally {
-        setloading(false);
-      }
+    const onUploaded = (event: Event) => {
+      const detail = (event as CustomEvent<{ video?: any }>).detail;
+      const uploaded = detail?.video;
+      if (!uploaded || !uploaded._id) return;
+
+      // Best-effort refresh related list if user is watching.
+      reload();
     };
-    fetchvideo();
-  }, [id, router.isReady]);
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("video:uploaded", onUploaded as EventListener);
+      return () => {
+        window.removeEventListener("video:uploaded", onUploaded as EventListener);
+      };
+    }
+  }, [reload]);
   // const relatedVideos = [
   //   {
   //     _id: "1",
@@ -61,17 +63,27 @@ const index = () => {
   //     createdAt: new Date(Date.now() - 86400000).toISOString(),
   //   },
   // ];
-  if (loading) {
-    return <div>Loading..</div>;
+  if (loading) return <WatchPageSkeleton />;
+
+  if (error) {
+    return (
+      <div className="flex-1 p-4">
+        <div className="max-w-4xl">
+          <ErrorState title="Couldn’t load video" message={error} onRetry={reload} />
+        </div>
+      </div>
+    );
   }
   
   if (!currentVideo) {
-    return <div>Video not found</div>;
+    return (
+      <div className="flex-1 p-4">
+        <div className="max-w-4xl">
+          <ErrorState title="Video not found" message="This video may have been removed." />
+        </div>
+      </div>
+    );
   }
-
-  const relatedVideos = allVideos
-    .filter((v) => String(v?._id) !== String(id))
-    .slice(0, 20);
 
   return (
     <div className="min-h-screen bg-white">
@@ -80,7 +92,7 @@ const index = () => {
           <div className="lg:col-span-2 space-y-4">
             <Videopplayer video={currentVideo} />
             <VideoInfo video={currentVideo} />
-            <Comments videoId={id} />
+            <Comments videoId={videoId} />
           </div>
           <div className="space-y-4">
             <h2 className="font-semibold">Related Videos</h2>

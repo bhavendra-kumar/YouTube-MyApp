@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import axiosInstance from "@/lib/axiosinstance";
+import axiosClient from "@/services/http/axios";
 import { buildMediaUrl } from "@/lib/media";
+import ErrorState from "@/components/ErrorState";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type SearchResultProps = {
   query?: string;
@@ -22,22 +24,29 @@ type VideoItem = {
 const SearchResult = ({ query }: SearchResultProps) => {
   const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await axiosClient.get("/video/getall", {
+        params: { page: 1, limit: 50 },
+      });
+      const items = res.data?.items;
+      setAllVideos(Array.isArray(items) ? items : []);
+    } catch (e) {
+      console.error("Failed to load videos", e);
+      setAllVideos([]);
+      setError("Failed to load search results.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await axiosInstance.get<VideoItem[]>("/video/getall");
-        setAllVideos(Array.isArray(res.data) ? res.data : []);
-      } catch (e) {
-        console.error("Failed to load videos", e);
-        setAllVideos([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const results = useMemo(() => {
@@ -62,7 +71,30 @@ const SearchResult = ({ query }: SearchResultProps) => {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Loading search results...</div>;
+    return (
+      <div className="space-y-6 py-6">
+        <div className="flex gap-4">
+          <Skeleton className="h-40 w-80 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-5/6" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <Skeleton className="h-40 w-80 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-4/6" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorState title="Search unavailable" message={error} onRetry={load} />;
   }
 
   const hasResults = results.length > 0;

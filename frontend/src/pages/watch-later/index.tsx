@@ -13,3 +13,5 @@ export default function WatchLaterPage() {
     </main>
   );
 }
+
+WatchLaterPage.requireAuth = true;

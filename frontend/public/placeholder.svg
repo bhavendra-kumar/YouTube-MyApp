@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="854" height="480" viewBox="0 0 854 480" role="img" aria-label="Video placeholder">
+  <rect width="854" height="480" fill="#f3f4f6" />
+  <rect x="0" y="340" width="854" height="140" fill="#e5e7eb" />
+  <g transform="translate(427 220)">
+    <circle r="54" fill="#111827" opacity="0.75" />
+    <polygon points="-14,-20 -14,20 22,0" fill="#ffffff" />
+  </g>
+</svg>

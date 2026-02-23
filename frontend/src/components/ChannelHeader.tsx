@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
-import axiosInstance from "@/lib/axiosinstance";
-import { toast } from "sonner";
+import axiosClient from "@/services/http/axios";
+import { notify } from "@/services/toast";
 
 const ChannelHeader = ({ channel, user }: any) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -14,11 +14,11 @@ const ChannelHeader = ({ channel, user }: any) => {
     const load = async () => {
       if (!channelId) return;
       try {
-        const countRes = await axiosInstance.get(`/subscribe/count/${channelId}`);
+        const countRes = await axiosClient.get(`/subscribe/count/${channelId}`);
         setSubscriberCount(Number(countRes.data?.subscribers ?? 0));
 
         if (user?._id) {
-          const statusRes = await axiosInstance.get(
+          const statusRes = await axiosClient.get(
             `/subscribe/status/${channelId}/${user._id}`
           );
           setIsSubscribed(Boolean(statusRes.data?.subscribed));
@@ -36,14 +36,24 @@ const ChannelHeader = ({ channel, user }: any) => {
 
   const handleSubscribe = async () => {
     if (!user) {
-      toast("Sign in to subscribe");
+      notify.info("Sign in to subscribe");
       return;
     }
     if (!channelId) return;
     if (String(user?._id) === String(channelId)) return;
 
+    const prev = { isSubscribed, subscriberCount };
+
     try {
-      const res = await axiosInstance.post(`/subscribe/${channelId}`, {
+      if (isSubscribed) {
+        setIsSubscribed(false);
+        setSubscriberCount((n) => Math.max(0, n - 1));
+      } else {
+        setIsSubscribed(true);
+        setSubscriberCount((n) => n + 1);
+      }
+
+      const res = await axiosClient.post(`/subscribe/${channelId}`, {
         userId: user?._id,
       });
       setIsSubscribed(Boolean(res.data?.subscribed));
@@ -52,6 +62,9 @@ const ChannelHeader = ({ channel, user }: any) => {
       }
     } catch (e) {
       console.error(e);
+      setIsSubscribed(prev.isSubscribed);
+      setSubscriberCount(prev.subscriberCount);
+      notify.error("Could not update subscription");
     }
   };
 

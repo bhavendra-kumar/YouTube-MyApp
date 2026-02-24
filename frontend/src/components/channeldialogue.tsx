@@ -15,8 +15,8 @@ import axiosClient from "@/services/http/axios";
 import { useUser } from "@/context/AuthContext";
 import { notify } from "@/services/toast";
 
-const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
-  const { user, login } = useUser();
+const Channeldialogue = ({ isopen, onclose, channeldata, mode, onSaved }: any) => {
+  const { user, updateUser } = useUser();
   // const user: any = {
   //   id: "1",
   //   name: "John Doe",
@@ -32,16 +32,16 @@ const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
   useEffect(() => {
     if (channeldata && mode === "edit") {
       setFormData({
-        name: channeldata.name || "",
+        name: channeldata.channelname || channeldata.name || "",
         description: channeldata.description || "",
       });
     } else {
       setFormData({
-        name: user?.name || "",
+        name: user?.channelname || user?.name || "",
         description: "",
       });
     }
-  }, [channeldata]);
+  }, [channeldata, mode, user?.channelname, user?.name]);
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -60,9 +60,16 @@ const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
     try {
       setisSubmitting(true);
       const response = await axiosClient.patch(`/user/update/${user._id}`, payload);
-      login(response?.data);
-      notify.success("Channel updated");
-      router.push(`/channel/${user?._id}`);
+      const updated = (response as any)?.data?.data ?? (response as any)?.data;
+
+      if (updated && typeof updated === "object") {
+        updateUser(updated);
+        if (typeof onSaved === "function") {
+          onSaved(updated);
+        }
+      }
+
+      notify.success(mode === "create" ? "Channel created" : "Channel updated");
       setFormData({
         name: "",
         description: "",

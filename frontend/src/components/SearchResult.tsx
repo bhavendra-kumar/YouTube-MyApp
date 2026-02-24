@@ -24,7 +24,7 @@ type VideoItem = {
 const SearchResult = ({ query }: SearchResultProps) => {
   const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -63,7 +63,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
   if (!trimmedQuery) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Enter a search term to find videos and channels.
         </p>
       </div>
@@ -102,7 +102,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold mb-2">No results found</h2>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Try different keywords or remove search filters
         </p>
       </div>
@@ -115,7 +115,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
         {results.map((video) => (
           <div key={video._id} className="flex gap-4 group">
             <Link href={`/watch/${video._id}`} className="flex-shrink-0">
-              <div className="relative w-80 aspect-video bg-gray-100 rounded-lg overflow-hidden">
+              <div className="relative w-80 aspect-video bg-muted rounded-lg overflow-hidden">
                 <video
                   src={buildMediaUrl(video?.filepath)}
                   preload="metadata"
@@ -128,12 +128,12 @@ const SearchResult = ({ query }: SearchResultProps) => {
 
             <div className="flex-1 min-w-0 py-1">
               <Link href={`/watch/${video._id}`}>
-                <h3 className="font-medium text-lg line-clamp-2 group-hover:text-blue-600 mb-2">
+                <h3 className="font-medium text-lg line-clamp-2 mb-2">
                   {video?.videotitle || "Untitled"}
                 </h3>
               </Link>
 
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <span>{Number(video?.views || 0).toLocaleString()} views</span>
                 <span>•</span>
                 <span>
@@ -148,7 +148,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
 
               <Link
                 href={`/channel/${video?.uploader}`}
-                className="flex items-center gap-2 mb-2 hover:text-blue-600"
+                className="flex items-center gap-2 mb-2 hover:underline"
               >
                 <Avatar className="w-6 h-6">
                   <AvatarImage src="/placeholder.svg?height=24&width=24" />
@@ -156,12 +156,12 @@ const SearchResult = ({ query }: SearchResultProps) => {
                     {String(video?.videochanel || "?").charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-muted-foreground">
                   {video?.videochanel || "Unknown channel"}
                 </span>
               </Link>
 
-              <p className="text-sm text-gray-700 line-clamp-2">
+              <p className="text-sm text-muted-foreground line-clamp-2">
                 Sample video description that would show search-relevant content
                 and help users understand what the video is about before
                 clicking.
@@ -173,7 +173,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
 
       {/* Load More Results */}
       <div className="text-center py-8">
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Showing {results.length} results for &quot;{trimmedQuery}&quot;
         </p>
       </div>

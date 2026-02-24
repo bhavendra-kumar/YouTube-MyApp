@@ -5,6 +5,8 @@ import type { Category } from "@/components/CategoryTab";
 import axiosClient from "@/services/http/axios";
 import VideoCard from "@/components/VideoCard"
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/context/SidebarContext";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,22 @@ function getSearchQueryParam(raw: unknown) {
 export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
   const router = useRouter();
   const search = getSearchQueryParam(router.query.search).trim().toLowerCase();
+
+  const { isCollapsed } = useSidebar();
+
+  const [screenWidth, setScreenWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      if (typeof window === "undefined") return;
+      const next = window.screen?.width || window.innerWidth;
+      setScreenWidth(Number.isFinite(next) ? next : window.innerWidth);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const [videos, setVideos] = useState<ApiVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +160,21 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
     });
   }, [search, videos]);
 
+  const lgColsClass = useMemo(() => {
+    // Use physical screen width (not viewport CSS width) to avoid browser zoom
+    // shifting Tailwind breakpoints and changing column counts unexpectedly.
+    const w = screenWidth ?? 0;
+
+    if (isCollapsed) {
+      if (w >= 2560) return "lg:grid-cols-3";
+      return "lg:grid-cols-4";
+    }
+
+    if (w >= 2560) return "lg:grid-cols-3";
+    if (w >= 1920) return "lg:grid-cols-4";
+    return "lg:grid-cols-3";
+  }, [isCollapsed, screenWidth]);
+
   if (loading) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">Loading...</p>
@@ -173,7 +206,12 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
         </DropdownMenu>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2",
+          lgColsClass
+        )}
+      >
         {filtered.map((video) => (
           <VideoCard key={video._id} video={video} />
         ))}

@@ -2,6 +2,8 @@ import ChannelHeader from "@/components/ChannelHeader";
 import Channeltabs from "@/components/Channeltabs";
 import ChannelVideos from "@/components/ChannelVideos";
 import VideoUploader from "@/components/VideoUploader";
+import Channeldialogue from "@/components/channeldialogue";
+import { Button } from "@/components/ui/button";
 import { useUser } from "@/context/AuthContext";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -14,6 +16,7 @@ const index = () => {
   const [channel, setChannel] = useState<any>(null);
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const channelId = useMemo(() => (typeof id === "string" ? id : ""), [id]);
 
   const load = async () => {
@@ -25,7 +28,8 @@ const index = () => {
         axiosClient.get(`/user/${channelId}`),
         axiosClient.get("/video/getall", { params: { uploader: channelId, page: 1 } }),
       ]);
-      setChannel(channelRes.data);
+      const channelData = (channelRes as any)?.data?.data ?? (channelRes as any)?.data ?? null;
+      setChannel(channelData);
 
       const items = videosRes.data?.items;
       setVideos(Array.isArray(items) ? items : []);
@@ -78,8 +82,56 @@ const index = () => {
     return <div className="flex-1 p-4">Channel not found</div>;
   }
 
+  const channelName = String(
+    channel?.channelname || channel?.name || channel?.email || ""
+  ).trim();
+  const isOwner = Boolean(user?._id && String(user._id) === String(channelId));
+
+  if (!channel?._id) {
+    return <div className="flex-1 p-4">Channel not found</div>;
+  }
+
+  if (!channelName) {
+    if (!isOwner) {
+      return <div className="flex-1 p-4">Channel not found</div>;
+    }
+
+    return (
+      <main className="flex-1 p-6">
+        <div className="mx-auto w-full max-w-2xl rounded-lg border bg-card p-6 text-card-foreground">
+          <h1 className="text-2xl font-bold">Create your channel</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Set a channel name to start uploading videos.
+          </p>
+
+          <div className="mt-6 flex gap-3">
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Create channel
+            </Button>
+            <Button variant="outline" onClick={() => void router.push("/")}>Back</Button>
+          </div>
+
+          <Channeldialogue
+            isopen={isCreateOpen}
+            onclose={() => setIsCreateOpen(false)}
+            channeldata={channel}
+            mode="create"
+            onSaved={() => {
+              setIsCreateOpen(false);
+              setLoading(true);
+              void load();
+            }}
+          />
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="flex-1 min-h-screen bg-white">
+    <div className="flex-1 min-h-screen bg-background">
       <div className="max-w-full mx-auto">
         <ChannelHeader channel={channel} user={user} />
         <Channeltabs />

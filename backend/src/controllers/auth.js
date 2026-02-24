@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import mongoose from "mongoose";
 
 import User from "../models/user.js";
@@ -62,9 +63,15 @@ async function issueTokensForUser(res, user) {
   const expiresAt = new Date(
     Date.now() + durationToMs(env.refreshTokenTtl, 1000 * 60 * 60 * 24 * 30)
   );
+
+  // NOTE: `RefreshToken.tokenHash` is unique. Using a constant placeholder
+  // (like "pending") can race when multiple logins happen concurrently.
+  // We generate a unique placeholder upfront and then replace it with the
+  // real hash once the signed refresh token is created.
+  const placeholderHash = crypto.randomBytes(32).toString("hex");
   const tokenDoc = await RefreshToken.create({
     user: user._id,
-    tokenHash: "pending",
+    tokenHash: placeholderHash,
     expiresAt,
   });
 

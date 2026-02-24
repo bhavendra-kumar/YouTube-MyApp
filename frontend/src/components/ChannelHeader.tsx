@@ -10,6 +10,13 @@ const ChannelHeader = ({ channel, user }: any) => {
 
   const channelId = channel?._id;
 
+  const channelName: string =
+    String(channel?.channelname || channel?.name || channel?.email || "").trim();
+  const channelHandle = channelName
+    ? `@${channelName.toLowerCase().replace(/\s+/g, "")}`
+    : "";
+  const avatarLetter = channelName ? channelName[0]?.toUpperCase() : "?";
+
   useEffect(() => {
     const load = async () => {
       if (!channelId) return;
@@ -78,14 +85,14 @@ const ChannelHeader = ({ channel, user }: any) => {
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <Avatar className="w-20 h-20 md:w-32 md:h-32">
             <AvatarFallback className="text-2xl">
-              {channel?.channelname[0]}
+              {avatarLetter}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 space-y-2">
-            <h1 className="text-2xl md:text-4xl font-bold">{channel?.channelname}</h1>
+            <h1 className="text-2xl md:text-4xl font-bold">{channelName || "Channel"}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-              <span>@{channel?.channelname.toLowerCase().replace(/\s+/g, "")}</span>
+              {channelHandle ? <span>{channelHandle}</span> : null}
               <span>{subscriberCount.toLocaleString()} subscribers</span>
             </div>
             {channel?.description && (

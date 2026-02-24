@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Button } from "./ui/button";
+import { Button } from "./ui/button"
 import {
   Clock,
   Download,
@@ -16,6 +16,7 @@ import { getSocket } from "@/lib/socket";
 import { notify } from "@/services/toast";
 import Link from "next/link";
 import { buildMediaUrl } from "@/lib/media";
+import { cn } from "@/lib/utils";
 
 const VideoInfo = ({ video }: any) => {
   const [likes, setlikes] = useState<number>(Number(video?.Like ?? 0));
@@ -337,87 +338,21 @@ const VideoInfo = ({ video }: any) => {
       <h1 className="text-xl font-semibold">{video.videotitle}</h1>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
-          <span>{Number(video?.views || 0).toLocaleString()} views</span>
-          <span>•</span>
-          <span>
-            {video?.createdAt
-              ? `${formatDistanceToNow(new Date(video.createdAt))} ago`
-              : ""}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-gray-100 rounded-full">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-l-full"
-              onClick={handleLike}
-            >
-              <ThumbsUp className={`w-5 h-5 mr-2 ${isLiked ? "fill-black text-black" : ""}`} />
-              {Number(likes || 0).toLocaleString()}
-            </Button>
-            <div className="w-px h-6 bg-gray-300" />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-r-full"
-              onClick={handleDislike}
-            >
-              <ThumbsDown className={`w-5 h-5 mr-2 ${isDisliked ? "fill-black text-black" : ""}`} />
-              {Number(dislikes || 0).toLocaleString()}
-            </Button>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`bg-gray-100 rounded-full ${isWatchLater ? "text-primary" : ""}`}
-            onClick={handleWatchLater}
-          >
-            <Clock className="w-5 h-5 mr-2" />
-            {isWatchLater ? "Saved" : "Watch Later"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="bg-gray-100 rounded-full"
-            onClick={handleShare}
-          >
-            <Share className="w-5 h-5 mr-2" />
-            Share
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="bg-gray-100 rounded-full"
-            onClick={handleDownload}
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Download
-          </Button>
-          <Button variant="ghost" size="icon" className="bg-gray-100 rounded-full">
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
           <Link href={video?.uploader ? `/channel/${video.uploader}` : "#"}>
             <Avatar className="w-10 h-10">
               <AvatarFallback>{video.videochanel?.[0] ?? "?"}</AvatarFallback>
             </Avatar>
           </Link>
-          <div>
+          <div className="min-w-0">
             <Link
               href={video?.uploader ? `/channel/${video.uploader}` : "#"}
               className="font-medium hover:underline"
             >
               {video.videochanel}
             </Link>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               {subscriberCount.toLocaleString()} subscribers
             </p>
           </div>
@@ -430,10 +365,77 @@ const VideoInfo = ({ video }: any) => {
               {isSubscribed ? "Subscribed" : "Subscribe"}
             </Button>
           ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-full bg-muted">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-l-full"
+              onClick={handleLike}
+            >
+              <ThumbsUp className={`w-5 h-5 mr-2 ${isLiked ? "fill-current" : ""}`} />
+              {Number(likes || 0).toLocaleString()}
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-r-full"
+              onClick={handleDislike}
+            >
+              <ThumbsDown className={`w-5 h-5 mr-2 ${isDisliked ? "fill-current" : ""}`} />
+              {Number(dislikes || 0).toLocaleString()}
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn("rounded-full bg-muted", isWatchLater ? "text-primary" : "")}
+            onClick={handleWatchLater}
+          >
+            <Clock className="w-5 h-5 mr-2" />
+            {isWatchLater ? "Saved" : "Save"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full bg-muted"
+            onClick={handleShare}
+          >
+            <Share className="w-5 h-5 mr-2" />
+            Share
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full bg-muted"
+            onClick={handleDownload}
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Download
+          </Button>
+          <Button variant="ghost" size="icon" className="rounded-full bg-muted">
+            <MoreHorizontal className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
-      <div className="bg-gray-100 rounded-lg p-4">
+      <div className="rounded-lg bg-muted p-4">
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {Number(video?.views || 0).toLocaleString()} views
+          </span>
+          <span>•</span>
+          <span>
+            {video?.createdAt
+              ? `${formatDistanceToNow(new Date(video.createdAt))} ago`
+              : ""}
+          </span>
+        </div>
         {String(video?.description || "").trim() ? (
           <>
             <div className={`text-sm ${showFullDescription ? "" : "line-clamp-3"}`}>
@@ -449,7 +451,7 @@ const VideoInfo = ({ video }: any) => {
             </Button>
           </>
         ) : (
-          <p className="text-sm text-gray-600">No description.</p>
+          <p className="text-sm text-muted-foreground">No description.</p>
         )}
       </div>
     </div>

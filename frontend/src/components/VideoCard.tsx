@@ -2,7 +2,7 @@ import Link from "next/link";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { buildMediaUrl } from "@/lib/media";
+import { buildMediaUrl } from "@/lib/media"
 
 dayjs.extend(relativeTime);
 
@@ -33,7 +33,7 @@ export default function VideoCard({ video }: { video?: Video }) {
   return (
     <Link href={`/watch/${video?._id ?? ""}`} className="group">
       <div className="space-y-3">
-        <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+        <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
           <video
             src={buildMediaUrl(video?.filepath)}
             preload="metadata"
@@ -52,11 +52,11 @@ export default function VideoCard({ video }: { video?: Video }) {
             <AvatarFallback>{channelInitial}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm line-clamp-2 group-hover:text-blue-600">
+            <h3 className="line-clamp-2 text-sm font-medium">
               {video?.videotitle}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">{channel}</p>
-            <p className="text-sm text-gray-600">
+            <p className="mt-1 text-sm text-muted-foreground">{channel}</p>
+            <p className="text-sm text-muted-foreground">
               {viewsNumber.toLocaleString()} views{timeAgo ? ` • ${timeAgo}` : ""}
             </p>
           </div>

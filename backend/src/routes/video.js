@@ -13,6 +13,8 @@ routes.post(
 		{ name: "file", maxCount: 1 },
 		{ name: "video", maxCount: 1 },
 		{ name: "thumbnail", maxCount: 1 },
+		{ name: "caption", maxCount: 5 },
+		{ name: "captions", maxCount: 5 },
 	]),
 	asyncHandler(uploadVideo)
 );

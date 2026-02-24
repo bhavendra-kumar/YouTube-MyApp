@@ -13,12 +13,15 @@ export type AppUser = {
   image?: string;
   role?: string;
   token?: string;
+  channelname?: string;
+  description?: string;
 };
 
 type AuthContextValue = {
   user: AppUser | null;
   ready: boolean;
   login: (userdata: AppUser & { token?: string }) => void;
+  updateUser: (patch: Partial<AppUser>) => void;
   logout: () => Promise<void>;
   handlegooglesignin: () => Promise<void>;
 };
@@ -37,6 +40,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (userdata?.token) {
       setAccessToken(String(userdata.token));
     }
+  };
+
+  const updateUser = (patch: Partial<AppUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("user", JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+      }
+
+      return next;
+    });
   };
 
   const logout = async () => {
@@ -58,17 +78,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handlegooglesignin = async () => {
-    const result = await signInWithPopup(auth, provider);
-    const firebaseuser = result.user;
-
-    const payload = {
-      email: firebaseuser.email,
-      name: firebaseuser.displayName,
-      image: firebaseuser.photoURL || "https://github.com/shadcn.png",
-    };
-
-    const response = await axiosClient.post("/user/login", payload);
-    login({ ...response.data.result, token: response.data.token });
+    // We intentionally do NOT call the backend here.
+    // `onAuthStateChanged` will fire after a successful sign-in and will
+    // create/refresh the backend session exactly once.
+    await signInWithPopup(auth, provider);
   };
 
   useEffect(() => {
@@ -116,7 +129,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, ready, login, logout, handlegooglesignin }),
+    () => ({ user, ready, login, updateUser, logout, handlegooglesignin }),
     [ready, user]
   );
 

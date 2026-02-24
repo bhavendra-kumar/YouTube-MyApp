@@ -3,7 +3,7 @@ import { useEffect } from "react";
 
 import { useUser } from "@/context/AuthContext";
 import { notify } from "@/services/toast";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton"
 
 type ProtectedRouteProps = {
   children: React.ReactNode;

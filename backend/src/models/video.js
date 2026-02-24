@@ -7,6 +7,27 @@ const videochema = mongoose.Schema(
     filename: { type: String, required: true },
     filetype: { type: String, required: true },
     filepath: { type: String, required: true },
+    sources: {
+      type: [
+        {
+          src: { type: String, required: true },
+          label: { type: String, required: true },
+          type: { type: String, default: "video/mp4" },
+        },
+      ],
+      default: [],
+    },
+    captions: {
+      type: [
+        {
+          src: { type: String, required: true },
+          label: { type: String, default: "" },
+          lang: { type: String, required: true },
+          default: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
     thumbnailUrl: { type: String, default: "" },
     cloudinary: {
       videoPublicId: { type: String, default: "" },

@@ -23,10 +23,12 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [captionFile, setCaptionFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [uploadComplete, setUploadComplete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const captionInputRef = useRef<HTMLInputElement>(null);
   const handlefilechange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -65,6 +67,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   const resetForm = () => {
     setVideoFile(null);
     setThumbnailFile(null);
+    setCaptionFile(null);
     setVideoTitle("");
     setIsUploading(false);
     setUploadProgress(0);
@@ -74,6 +77,9 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     }
     if (thumbnailInputRef.current) {
       thumbnailInputRef.current.value = "";
+    }
+    if (captionInputRef.current) {
+      captionInputRef.current.value = "";
     }
   };
   const cancelUpload = () => {
@@ -91,6 +97,9 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     if (thumbnailFile) {
       formdata.append("thumbnail", thumbnailFile);
     }
+    if (captionFile) {
+      formdata.append("captions", captionFile);
+    }
     formdata.append("videotitle", videoTitle);
     formdata.append("videochanel", channelName);
     formdata.append("uploader", channelId);
@@ -98,9 +107,6 @@ const VideoUploader = ({ channelId, channelName }: any) => {
       setIsUploading(true);
       setUploadProgress(0);
       const res = await axiosClient.post("/video/upload", formdata, {
-         headers: {
-    "Content-Type": "multipart/form-data", // ✅ MUST for FormData
-  },
         onUploadProgress: (progresEvent: any) => {
           const progress = Math.round(
             (progresEvent.loaded * 100) / progresEvent.total
@@ -130,23 +136,23 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     }
   };
   return (
-    <div className="bg-gray-50 rounded-lg p-6">
+    <div className="rounded-lg border bg-card p-6">
       <h2 className="text-xl font-semibold mb-4">Upload a video</h2>
 
       <div className="space-y-4">
         {!videoFile ? (
           <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+            className="rounded-lg border-2 border-dashed border-border p-8 text-center cursor-pointer transition-colors hover:bg-muted"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Upload className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+            <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
             <p className="text-lg font-medium">
               Drag and drop video files to upload
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               or click to select files
             </p>
-            <p className="text-xs text-gray-400 mt-4">
+            <p className="text-xs text-muted-foreground mt-4">
               MP4, WebM, MOV or AVI • Up to 100MB
             </p>
             <input
@@ -159,13 +165,13 @@ const VideoUploader = ({ channelId, channelName }: any) => {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
-              <div className="bg-blue-100 p-2 rounded-md">
-                <FileVideo className="w-6 h-6 text-blue-600" />
+            <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
+              <div className="rounded-md bg-muted p-2">
+                <FileVideo className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{videoFile.name}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
                 </p>
               </div>
@@ -175,8 +181,8 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                 </Button>
               )}
               {uploadComplete && (
-                <div className="bg-green-100 p-1 rounded-full">
-                  <Check className="w-5 h-5 text-green-600" />
+                <div className="bg-muted p-1 rounded-full">
+                  <Check className="w-5 h-5" />
                 </div>
               )}
             </div>
@@ -226,6 +232,58 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                     Selected: {thumbnailFile.name}
                   </p>
                 ) : null}
+              </div>
+
+              <div>
+                <Label htmlFor="captions">Captions (optional)</Label>
+                <div className="mt-1 flex gap-2 items-center">
+                  <Input
+                    id="captions"
+                    type="file"
+                    ref={captionInputRef}
+                    accept=".vtt,text/vtt"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+                      const file = files[0];
+                      const name = String(file.name || "").toLowerCase();
+                      if (!name.endsWith(".vtt")) {
+                        notify.error("Please upload a .vtt captions file");
+                        return;
+                      }
+                      if (file.size > 2 * 1024 * 1024) {
+                        notify.error("Caption file is too large (max 2MB)");
+                        return;
+                      }
+                      setCaptionFile(file);
+                    }}
+                    disabled={isUploading || uploadComplete}
+                  />
+                  {captionFile ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setCaptionFile(null);
+                        if (captionInputRef.current) {
+                          captionInputRef.current.value = "";
+                        }
+                      }}
+                      disabled={isUploading || uploadComplete}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+                {captionFile ? (
+                  <p className="text-xs text-gray-500 mt-1 truncate">
+                    Selected: {captionFile.name}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload WebVTT (example: captions.en.vtt)
+                  </p>
+                )}
               </div>
             </div>
 

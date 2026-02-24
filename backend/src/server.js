@@ -3,6 +3,7 @@ import "./config/env.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
 
 import { env } from "./config/env.js";
 import { connectDb } from "./config/db.js";
@@ -31,6 +32,9 @@ app.use(apiRateLimiter);
 app.use(cookieParser());
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
+
+// Serve locally stored media (dev fallback when Cloudinary isn't available)
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/", (req, res) => {
   return sendSuccess(res, "You tube backend is working", 200);

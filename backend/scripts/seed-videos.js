@@ -46,20 +46,7 @@ async function main() {
 
   const items = [
     // Music
-    {
-      category: "Music",
-      videotitle: "Lo-fi Beats to Code To (Seed)",
-      filename: "video1.mp4",
-      filetype: "video1/mp4",
-      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
-      filesize: "0",
-      videochanel: channelName,
-      uploader: seedUploaderId,
-      views: 120300,
-      Like: 4521,
-      Dislike: 87,
-      createdAt: new Date(now - 1000 * 60 * 60 * 6),
-    },
+   
     {
       category: "Music",
       videotitle: "Acoustic Session: Weekend Vibes (Seed)",
@@ -90,36 +77,9 @@ async function main() {
       Dislike: 9,
       createdAt: new Date(now - 1000 * 60 * 60 * 30),
     },
-    {
-      category: "Movies",
-      videotitle: "Behind the Scenes: Mini Short Film (Seed)",
-      filename: "video1.mp4",
-      filetype: "video/mp4",
-      filepath: "https://res.cloudinary.com/demo/video/upload/sea_turtle.mp4",
-      filesize: "0",
-      videochanel: channelName,
-      uploader: seedUploaderId,
-      views: 2210,
-      Like: 140,
-      Dislike: 3,
-      createdAt: new Date(now - 1000 * 60 * 60 * 44),
-    },
+
 
     // Gaming
-    {
-      category: "Gaming",
-      videotitle: "Gaming Highlights: Clutch Win (Seed)",
-      filename: "video.mp4",
-      filetype: "video/mp4",
-      filepath: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
-      filesize: "0",
-      videochanel: channelName,
-      uploader: seedUploaderId,
-      views: 55321,
-      Like: 3210,
-      Dislike: 41,
-      createdAt: new Date(now - 1000 * 60 * 60 * 54),
-    },
     {
       category: "Gaming",
       videotitle: "Beginner Tips: Settings That Help (Seed)",

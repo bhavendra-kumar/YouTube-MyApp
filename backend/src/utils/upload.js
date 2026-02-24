@@ -15,13 +15,28 @@ const allowedImageTypes = new Set([
   "image/gif",
 ]);
 
+const allowedCaptionTypes = new Set([
+  "text/vtt",
+  "application/x-subrip",
+  "text/plain",
+  "application/octet-stream",
+]);
+
 const filefilter = (req, file, cb) => {
   const field = String(file?.fieldname || "").toLowerCase();
   const type = String(file?.mimetype || "").toLowerCase();
+  const originalName = String(file?.originalname || "").toLowerCase();
 
   if (field === "thumbnail") {
     const ok = allowedImageTypes.has(type);
     if (!ok) req.fileValidationError = "Invalid thumbnail type. Use jpg/png/webp/gif.";
+    return cb(null, ok);
+  }
+
+  if (field === "caption" || field === "captions") {
+    const hasAllowedExt = originalName.endsWith(".vtt") || originalName.endsWith(".srt");
+    const ok = allowedCaptionTypes.has(type) && hasAllowedExt;
+    if (!ok) req.fileValidationError = "Invalid caption type. Upload .vtt (recommended) or .srt.";
     return cb(null, ok);
   }
 

@@ -4,17 +4,106 @@ import RelatedVideos from "@/components/RelatedVideos";
 import VideoInfo from "@/components/VideoInfo";
 import Videopplayer from "@/components/Videopplayer";
 import { useRouter } from "next/router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import WatchPageSkeleton from "@/features/watch/components/WatchPageSkeleton";
 import { useWatchPageData } from "@/features/watch/hooks/useWatchPageData";
+import { cn } from "@/lib/utils";
+
+type WatchQueueState = {
+  ids: string[];
+  index: number;
+};
+
+const WATCH_QUEUE_KEY = "yt:watchQueue";
+
+function readWatchQueue(): WatchQueueState {
+  if (typeof window === "undefined") return { ids: [], index: -1 };
+  try {
+    const raw = window.sessionStorage.getItem(WATCH_QUEUE_KEY);
+    if (!raw) return { ids: [], index: -1 };
+    const parsed = JSON.parse(raw) as Partial<WatchQueueState>;
+    const ids = Array.isArray(parsed.ids) ? parsed.ids.filter(Boolean) : [];
+    const index = typeof parsed.index === "number" ? parsed.index : ids.length - 1;
+    return {
+      ids,
+      index: Math.max(-1, Math.min(index, ids.length - 1)),
+    };
+  } catch {
+    return { ids: [], index: -1 };
+  }
+}
+
+function writeWatchQueue(next: WatchQueueState) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(WATCH_QUEUE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
 
 const index = () => {
   const router = useRouter();
   const { id } = router.query;
 
+  const [theaterMode, setTheaterMode] = useState(false);
+
   const videoId = router.isReady && typeof id === "string" ? id : null;
   const { video: currentVideo, relatedVideos, loading, error, reload } = useWatchPageData<any>(videoId);
+
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  useEffect(() => {
+    if (!videoId) return;
+    const state = readWatchQueue();
+
+    // If the video exists somewhere in the queue, move pointer to it.
+    const existingIndex = state.ids.indexOf(videoId);
+    let ids = state.ids;
+    let index = state.index;
+
+    if (existingIndex >= 0) {
+      index = existingIndex;
+    } else {
+      // Normal navigation: truncate forward history and append.
+      const safeIndex = Math.max(-1, Math.min(index, ids.length - 1));
+      const prefix = safeIndex >= 0 ? ids.slice(0, safeIndex + 1) : [];
+      ids = [...prefix, videoId];
+      index = ids.length - 1;
+
+      // Cap memory
+      if (ids.length > 50) {
+        const drop = ids.length - 50;
+        ids = ids.slice(drop);
+        index = Math.max(0, index - drop);
+      }
+    }
+
+    const nextState = { ids, index };
+    writeWatchQueue(nextState);
+
+    setCanPrev(index > 0);
+    setCanNext(index < ids.length - 1 || (Array.isArray(relatedVideos) && relatedVideos.length > 0));
+  }, [videoId, relatedVideos]);
+
+  const goPrev = () => {
+    const state = readWatchQueue();
+    if (state.index <= 0) return;
+    const target = state.ids[state.index - 1];
+    if (!target) return;
+    void router.push(`/watch/${target}`);
+  };
+
+  const goNext = () => {
+    const state = readWatchQueue();
+    const nextFromQueue = state.index >= 0 && state.index < state.ids.length - 1 ? state.ids[state.index + 1] : null;
+    const nextFromRelated = Array.isArray(relatedVideos) && relatedVideos.length > 0 ? relatedVideos[0]?._id : null;
+    const target = nextFromQueue || nextFromRelated;
+    if (!target) return;
+    void router.push(`/watch/${target}`);
+  };
 
   useEffect(() => {
     const onUploaded = (event: Event) => {
@@ -86,18 +175,41 @@ const index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <Videopplayer video={currentVideo} />
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-6",
+            theaterMode ? "lg:grid-cols-1" : "lg:grid-cols-3"
+          )}
+        >
+          <div className={cn("space-y-4", theaterMode ? "" : "lg:col-span-2")}>
+            <Videopplayer
+              video={currentVideo}
+              theaterMode={theaterMode}
+              onTheaterModeChange={setTheaterMode}
+              onPrev={goPrev}
+              onNext={goNext}
+              canPrev={canPrev}
+              canNext={canNext}
+            />
             <VideoInfo video={currentVideo} />
             <Comments videoId={videoId} />
+
+            {theaterMode ? (
+              <div className="space-y-4">
+                <h2 className="font-semibold">Related Videos</h2>
+                <RelatedVideos videos={relatedVideos} />
+              </div>
+            ) : null}
           </div>
-          <div className="space-y-4">
-            <h2 className="font-semibold">Related Videos</h2>
-            <RelatedVideos videos={relatedVideos} />
-          </div>
+
+          {!theaterMode ? (
+            <div className="space-y-4">
+              <h2 className="font-semibold">Related Videos</h2>
+              <RelatedVideos videos={relatedVideos} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

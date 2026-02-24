@@ -6,6 +6,8 @@ import "@/styles/globals.css";
 import type { AppPropsWithAuth } from "@/types/next";
 import { UserProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { SidebarProvider } from "@/context/SidebarContext";
+import { ThemeProvider } from "next-themes";
 
 export default function App({ Component, pageProps }: AppPropsWithAuth) {
   const content = Component.requireAuth ? (
@@ -17,18 +19,22 @@ export default function App({ Component, pageProps }: AppPropsWithAuth) {
   );
 
   return (
-    <UserProvider>
-      <div className="min-h-screen bg-white text-black">
-        <Head>
-          <title>YouTube</title>
-        </Head>
-        <Header />
-        <Toaster />
-        <div className="flex">
-          <Sidebar />
-          {content}
-        </div>
-      </div>
-    </UserProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <UserProvider>
+        <SidebarProvider>
+          <div className="min-h-screen bg-background text-foreground">
+            <Head>
+              <title>YouTube</title>
+            </Head>
+            <Header />
+            <Toaster />
+            <div className="flex">
+              <Sidebar />
+              {content}
+            </div>
+          </div>
+        </SidebarProvider>
+      </UserProvider>
+    </ThemeProvider>
   );
 }

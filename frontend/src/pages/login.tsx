@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex-1 p-4">
-      <div className="mx-auto w-full max-w-md rounded-lg border bg-white p-6">
+      <div className="mx-auto w-full max-w-md rounded-lg border bg-card p-6 text-card-foreground">
         <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in to upload videos.

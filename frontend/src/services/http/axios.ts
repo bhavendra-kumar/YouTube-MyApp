@@ -22,7 +22,7 @@ const DEFAULT_BACKEND_URL =
     ? "https://youtube-myapp.onrender.com"
     : "http://localhost:5000";
 
-const baseURL = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim() || DEFAULT_BACKEND_URL;
+const baseURL = (process.env.NEXT_PUBLIC_API_URL || "").trim() || DEFAULT_BACKEND_URL;
 
 let refreshInFlight: Promise<string | null> | null = null;
 

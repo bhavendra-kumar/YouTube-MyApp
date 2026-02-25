@@ -1,6 +1,6 @@
 import { env } from "./env.js";
 
-const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app/" || "http://localhost:3000";
+const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app/";
 
 const normalizeOrigin = (value) => {
   if (!value) return "";
@@ -35,7 +35,7 @@ const allowLocalhost = (origin) => {
   }
 };
 
-const frontendOrigin = normalizeOrigin(env.frontendUrl) || DEFAULT_FRONTEND_ORIGIN;
+const frontendOrigin = normalizeOrigin(env.frontendUrl) || normalizeOrigin(DEFAULT_FRONTEND_ORIGIN);
 
 export function corsOriginChecker(origin, cb) {
   // Allow non-browser tools (no origin)

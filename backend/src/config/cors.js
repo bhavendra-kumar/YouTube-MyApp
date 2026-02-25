@@ -1,6 +1,6 @@
 import { env } from "./env.js";
 
-const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app";
+const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app/" || "http://localhost:3000";
 
 const normalizeOrigin = (value) => {
   if (!value) return "";

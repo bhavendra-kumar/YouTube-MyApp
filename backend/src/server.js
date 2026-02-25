@@ -62,8 +62,6 @@ app.use(errorHandler);
 async function start() {
   await connectDb();
 
-  // Build critical indexes (unique constraints, etc.) at startup.
-  // This avoids racey duplicate reactions if auto-indexing is delayed.
   try {
     await Promise.all([Like.init(), Dislike.init()]);
   } catch (err) {

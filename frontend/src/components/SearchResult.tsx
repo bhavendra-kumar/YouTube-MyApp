@@ -3,7 +3,6 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import axiosClient from "@/services/http/axios";
-import { buildMediaUrl } from "@/lib/media";
 import ErrorState from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -17,6 +16,7 @@ type VideoItem = {
   videochanel?: string;
   uploader?: string;
   filepath?: string;
+  thumbnailUrl?: string;
   views?: number;
   createdAt?: string | Date;
 };
@@ -112,39 +112,47 @@ const SearchResult = ({ query }: SearchResultProps) => {
     <div className="space-y-6">
       {/* Video Results */}
       <div className="space-y-4">
-        {results.map((video) => (
-          <div key={video._id} className="flex gap-4 group">
-            <Link href={`/watch/${video._id}`} className="flex-shrink-0">
-              <div className="relative w-80 aspect-video bg-muted rounded-lg overflow-hidden">
-                <video
-                  src={buildMediaUrl(video?.filepath)}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                />
-              </div>
-            </Link>
+        {results.map((video) => {
+          const title = video?.videotitle || "Untitled";
+          const viewsText = `${Number(video?.views || 0).toLocaleString()} views`;
+          let timeAgoText = "";
+          if (video?.createdAt) {
+            const date = new Date(video.createdAt);
+            if (!Number.isNaN(date.getTime())) timeAgoText = `${formatDistanceToNow(date)} ago`;
+          }
 
-            <div className="flex-1 min-w-0 py-1">
-              <Link href={`/watch/${video._id}`}>
-                <h3 className="font-medium text-lg line-clamp-2 mb-2">
-                  {video?.videotitle || "Untitled"}
-                </h3>
+          return (
+            <div key={video._id} className="group flex flex-col gap-4 sm:flex-row">
+              <Link href={`/watch/${video._id}`} className="w-full flex-shrink-0 sm:w-80" aria-label={title}>
+                <div className="relative aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                  {video.thumbnailUrl ? (
+                    <img
+                      src={video.thumbnailUrl}
+                      alt={`${title} thumbnail`}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                  ) : (
+                    <div className="h-full w-full" aria-hidden="true" />
+                  )}
+                </div>
               </Link>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <span>{Number(video?.views || 0).toLocaleString()} views</span>
-                <span>•</span>
-                <span>
-                  {(() => {
-                    if (!video?.createdAt) return "";
-                    const date = new Date(video.createdAt);
-                    if (Number.isNaN(date.getTime())) return "";
-                    return `${formatDistanceToNow(date)} ago`;
-                  })()}
-                </span>
-              </div>
+              <div className="flex-1 min-w-0 py-1">
+                <Link href={`/watch/${video._id}`}>
+                  <h3 className="font-medium text-lg line-clamp-2 mb-2">{title}</h3>
+                </Link>
+
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <span>{viewsText}</span>
+                  {timeAgoText ? (
+                    <>
+                      <span aria-hidden="true">•</span>
+                      <span>{timeAgoText}</span>
+                    </>
+                  ) : null}
+                </div>
 
               <Link
                 href={`/channel/${video?.uploader}`}
@@ -166,9 +174,10 @@ const SearchResult = ({ query }: SearchResultProps) => {
                 and help users understand what the video is about before
                 clicking.
               </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Load More Results */}

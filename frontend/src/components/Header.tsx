@@ -14,6 +14,7 @@ import {
     Shield,
     Sun,
     SwitchCamera,
+    
     User,
     UserCircle2,
     Video,
@@ -350,16 +351,31 @@ const Header = () => {
             <div className="flex items-center gap-1">
                 {user ? (
                     <>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Create"
-                            onClick={() => {
-                                void router.push("/upload")
-                            }}
-                        >
-                            <Video className="size-5" />
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label="Create">
+                                    <Video className="size-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        void router.push("/upload?type=video")
+                                    }}
+                                >
+                                    <Video className="size-4" />
+                                    Upload video
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        void router.push("/upload?type=short")
+                                    }}
+                                >
+                                    <Video className="size-4" />
+                                    Upload short
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="ghost" size="icon" aria-label="Notifications">
                             <Bell className="size-5" />
                         </Button>
@@ -508,6 +524,12 @@ const Header = () => {
                                             >
                                                 <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
                                                 <DropdownMenuRadioItem value="hi">Hindi</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="tel">Telugu</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="ta">Tamil</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="be">Bengali</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="ma">Marathi</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="mal">Malayalam</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="ka">Kannada</DropdownMenuRadioItem>
                                             </DropdownMenuRadioGroup>
                                         </DropdownMenuSubContent>
                                     </DropdownMenuSub>

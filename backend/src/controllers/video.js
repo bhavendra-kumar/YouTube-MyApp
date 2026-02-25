@@ -1,7 +1,18 @@
 import Video from "../models/video.js";
+import Like from "../models/like.js";
+import Dislike from "../models/dislike.js";
+import WatchLater from "../models/watchlater.js";
+import History from "../models/history.js";
+import Comment from "../models/comment.js";
+import Playlist from "../models/playlist.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { calculateTrendingScore } from "../utils/trendingScore.js";
 import { uploadCaptionFile, uploadThumbnailFile, uploadVideoFile } from "../services/uploadService.js";
+import { cacheGetJson, cacheSetJson } from "../services/cache.js";
+
+const VIDEO_LIST_SELECT =
+  "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
 
 function escapeRegex(input) {
   return String(input).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -63,6 +74,10 @@ export const uploadVideo = async (req, res) => {
 
   const videochanel = String(req.body?.videochanel || "").trim();
   if (!videochanel) throw new AppError("videochanel is required", 400);
+
+  const rawContentType = String(req.body?.contentType || "video").toLowerCase().trim();
+  const contentType = rawContentType === "short" ? "short" : "video";
+  const isShort = contentType === "short";
 
   let videoUpload;
   let thumbnailUpload;
@@ -134,6 +149,8 @@ export const uploadVideo = async (req, res) => {
 
   const doc = new Video({
     videotitle,
+    contentType,
+    isShort,
     category: req.body.category,
     filename: videoFile.originalname,
     filepath: videoUpload.secure_url,
@@ -159,15 +176,20 @@ export const uploadvideo = uploadVideo;
 
 export const getallvideo = async (req, res) => {
   const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
-  const rawLimit = Number.parseInt(String(req.query.limit ?? "8"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "10"), 10);
 
   const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 8;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
   const limit = Math.min(limitUncapped, 50);
 
   const query = {};
   if (req.query.uploader) {
     query.uploader = String(req.query.uploader);
+  }
+
+  const contentType = String(req.query.contentType ?? "").trim().toLowerCase();
+  if (contentType === "short" || contentType === "video") {
+    query.contentType = contentType;
   }
 
   const category = String(req.query.category ?? "").trim();
@@ -195,7 +217,12 @@ export const getallvideo = async (req, res) => {
   const currentPage = totalPages > 0 ? Math.min(page, totalPages) : page;
   const skip = (currentPage - 1) * limit;
 
-  const files = await Video.find(query).sort(sort).skip(skip).limit(limit);
+  const files = await Video.find(query)
+    .select(VIDEO_LIST_SELECT)
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return sendSuccess(
     res,
@@ -208,17 +235,379 @@ export const getallvideo = async (req, res) => {
   );
 };
 
+export const getHomeFeed = async (req, res) => {
+  const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "10"), 10);
+  const rawNow = Number.parseInt(String(req.query.now ?? ""), 10);
+
+  const pageUncapped = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+  const limit = Math.min(limitUncapped, 50);
+
+  const cacheKey = `video:homefeed:v1:page=${pageUncapped}:limit=${limit}`;
+  const cached = await cacheGetJson(cacheKey);
+  if (cached && typeof cached === "object") {
+    return res.status(200).json(cached);
+  }
+
+  const total = await Video.countDocuments({});
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  const page = totalPages > 0 ? Math.min(pageUncapped, totalPages) : pageUncapped;
+  const skip = (page - 1) * limit;
+
+  const nowMsUnbucketed = Number.isFinite(rawNow) && rawNow > 0 ? rawNow : Date.now();
+  // Bucket "now" to the minute so trendingScore ordering is stable across
+  // subsequent page fetches (prevents overlap/duplicates during infinite scroll).
+  const nowMs = Math.floor(nowMsUnbucketed / 60_000) * 60_000;
+  const nowDate = new Date(nowMs);
+
+  const dataRaw = await Video.aggregate([
+    {
+      $addFields: {
+        _createdAtMs: {
+          $toLong: {
+            $ifNull: ["$createdAt", nowDate],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        _hoursSinceUpload: {
+          $max: [
+            0,
+            {
+              $divide: [
+                { $subtract: [nowMs, "$_createdAtMs"] },
+                1000 * 60 * 60,
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        trendingScore: {
+          $divide: [
+            {
+              $add: [
+                {
+                  $multiply: [{ $ifNull: ["$views", 0] }, 0.5],
+                },
+                {
+                  $multiply: [{ $ifNull: ["$Like", 0] }, 0.3],
+                },
+                {
+                  $multiply: [{ $ifNull: ["$commentsCount", 0] }, 0.2],
+                },
+              ],
+            },
+            {
+              $pow: [{ $add: ["$_hoursSinceUpload", 2] }, 1.5],
+            },
+          ],
+        },
+      },
+    },
+    { $sort: { trendingScore: -1, createdAt: -1, _id: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $project: {
+        videotitle: 1,
+        filepath: 1,
+        thumbnailUrl: 1,
+        videochanel: 1,
+        views: 1,
+        createdAt: 1,
+        duration: 1,
+        category: 1,
+        contentType: 1,
+        isShort: 1,
+        uploader: 1,
+        Like: 1,
+        Dislike: 1,
+        commentsCount: 1,
+        trendingScore: 1,
+      },
+    },
+  ]);
+
+  const data = Array.isArray(dataRaw)
+    ? dataRaw.map((v) => ({
+        ...v,
+        trendingScore: calculateTrendingScore(v, nowMs),
+      }))
+    : [];
+
+  const payload = {
+    success: true,
+    page,
+    total,
+    data,
+
+  };
+
+  await cacheSetJson(cacheKey, payload, 60);
+  return res.status(200).json(payload);
+};
+
+export const getShortsFeed = async (req, res) => {
+  const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "10"), 10);
+  const rawNow = Number.parseInt(String(req.query.now ?? ""), 10);
+
+  const pageUncapped = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+  const limit = Math.min(limitUncapped, 50);
+
+  const cacheKey = `video:shortsfeed:v1:page=${pageUncapped}:limit=${limit}`;
+  const cached = await cacheGetJson(cacheKey);
+  if (cached && typeof cached === "object") {
+    return res.status(200).json(cached);
+  }
+
+  const query = { isShort: true };
+  const total = await Video.countDocuments(query);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  const page = totalPages > 0 ? Math.min(pageUncapped, totalPages) : pageUncapped;
+  const skip = (page - 1) * limit;
+
+  const nowMsUnbucketed = Number.isFinite(rawNow) && rawNow > 0 ? rawNow : Date.now();
+  const nowMs = Math.floor(nowMsUnbucketed / 60_000) * 60_000;
+  const nowDate = new Date(nowMs);
+
+  const dataRaw = await Video.aggregate([
+    { $match: query },
+    {
+      $addFields: {
+        _createdAtMs: {
+          $toLong: {
+            $ifNull: ["$createdAt", nowDate],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        _hoursSinceUpload: {
+          $max: [
+            0,
+            {
+              $divide: [
+                { $subtract: [nowMs, "$_createdAtMs"] },
+                1000 * 60 * 60,
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        trendingScore: {
+          $divide: [
+            {
+              $add: [
+                { $multiply: [{ $ifNull: ["$views", 0] }, 0.5] },
+                { $multiply: [{ $ifNull: ["$Like", 0] }, 0.3] },
+                { $multiply: [{ $ifNull: ["$commentsCount", 0] }, 0.2] },
+              ],
+            },
+            { $pow: [{ $add: ["$_hoursSinceUpload", 2] }, 1.5] },
+          ],
+        },
+      },
+    },
+    { $sort: { trendingScore: -1, createdAt: -1, _id: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $project: {
+        videotitle: 1,
+        filepath: 1,
+        thumbnailUrl: 1,
+        videochanel: 1,
+        views: 1,
+        createdAt: 1,
+        duration: 1,
+        category: 1,
+        contentType: 1,
+        isShort: 1,
+        uploader: 1,
+        Like: 1,
+        Dislike: 1,
+        commentsCount: 1,
+        trendingScore: 1,
+      },
+    },
+  ]);
+
+  const data = Array.isArray(dataRaw)
+    ? dataRaw.map((v) => ({
+        ...v,
+        trendingScore: calculateTrendingScore(v, nowMs),
+      }))
+    : [];
+
+  const payload = {
+    success: true,
+    page,
+    total,
+    data,
+
+  };
+
+  await cacheSetJson(cacheKey, payload, 60);
+  return res.status(200).json(payload);
+};
+
+export const postWatchTime = async (req, res) => {
+  const videoId = req.body?.videoId;
+  const watchedSecondsRaw = req.body?.watchedSeconds;
+
+  if (!videoId) {
+    throw new AppError("videoId is required", 400);
+  }
+
+  const watchedSeconds = Number(watchedSecondsRaw);
+  if (!Number.isFinite(watchedSeconds) || watchedSeconds <= 0) {
+    throw new AppError("watchedSeconds must be a positive number", 400);
+  }
+
+  let video;
+  try {
+    video = await Video.findById(videoId);
+  } catch {
+    throw new AppError("Invalid videoId", 400);
+  }
+
+  if (!video) {
+    throw new AppError("Video not found", 404);
+  }
+
+  const nextTotalWatchTime = Number(video.totalWatchTime ?? 0) + watchedSeconds;
+  const nextWatchTimeCount = Number(video.watchTimeCount ?? 0) + 1;
+  const nextAverageWatchTime = nextWatchTimeCount > 0 ? nextTotalWatchTime / nextWatchTimeCount : 0;
+
+  video.totalWatchTime = nextTotalWatchTime;
+  video.watchTimeCount = nextWatchTimeCount;
+  video.averageWatchTime = nextAverageWatchTime;
+
+  video.trendingScore = calculateTrendingScore(video);
+
+  await video.save();
+  return sendSuccess(res, video, 200);
+};
+
 export const getvideobyid = async (req, res) => {
   const { id } = req.params;
   const file = await Video.findByIdAndUpdate(
     id,
     { $inc: { views: 1 } },
     { new: true }
-  );
+  ).lean();
 
   if (!file) {
     throw new AppError("Video not found", 404);
   }
 
   return sendSuccess(res, file, 200);
+};
+
+export const updateMyVideo = async (req, res) => {
+  const userId = req.user?.id;
+  const { id } = req.params;
+
+  if (!userId) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  if (!id) {
+    throw new AppError("id is required", 400);
+  }
+
+  let video;
+  try {
+    video = await Video.findById(id);
+  } catch {
+    throw new AppError("Invalid id", 400);
+  }
+
+  if (!video) {
+    throw new AppError("Video not found", 404);
+  }
+
+  if (String(video.uploader || "") !== String(userId)) {
+    throw new AppError("Forbidden", 403);
+  }
+
+  const nextTitleRaw = req.body?.videotitle;
+  const nextCategoryRaw = req.body?.category;
+
+  const updates = {};
+  if (typeof nextTitleRaw === "string") {
+    const t = nextTitleRaw.trim();
+    if (!t) throw new AppError("videotitle cannot be empty", 400);
+    updates.videotitle = t;
+  }
+
+  if (typeof nextCategoryRaw === "string") {
+    const c = nextCategoryRaw.trim();
+    if (c) updates.category = c;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return sendSuccess(res, video.toObject(), 200);
+  }
+
+  Object.assign(video, updates);
+  // Keep trendingScore consistent (even though title/category don't directly affect it today).
+  video.trendingScore = calculateTrendingScore(video);
+  await video.save();
+
+  const updated = await Video.findById(id).select(VIDEO_LIST_SELECT).lean();
+  return sendSuccess(res, updated, 200);
+};
+
+export const deleteMyVideo = async (req, res) => {
+  const userId = req.user?.id;
+  const { id } = req.params;
+
+  if (!userId) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  if (!id) {
+    throw new AppError("id is required", 400);
+  }
+
+  let video;
+  try {
+    video = await Video.findById(id).select("_id uploader").lean();
+  } catch {
+    throw new AppError("Invalid id", 400);
+  }
+
+  if (!video) {
+    throw new AppError("Video not found", 404);
+  }
+
+  if (String(video.uploader || "") !== String(userId)) {
+    throw new AppError("Forbidden", 403);
+  }
+
+  // Cascade cleanup so client pages that populate video refs don't crash on null videoid.
+  await Promise.all([
+    Like.deleteMany({ videoid: id }),
+    Dislike.deleteMany({ videoid: id }),
+    WatchLater.deleteMany({ videoid: id }),
+    History.deleteMany({ videoid: id }),
+    Comment.deleteMany({ videoid: id }),
+    Playlist.updateMany({ videos: id }, { $pull: { videos: id } }),
+  ]);
+
+  await Video.findByIdAndDelete(id);
+  return sendSuccess(res, { deleted: true, id }, 200);
 };

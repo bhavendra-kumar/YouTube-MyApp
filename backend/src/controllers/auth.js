@@ -14,6 +14,11 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from "../services/tokens.js";
+import { uploadThumbnailFile } from "../services/uploadService.js";
+
+function escapeRegex(input) {
+  return String(input).replace(/[.*+?^${}()|[\[\]\\]/g, "\\$&");
+}
 
 function durationToMs(value, fallbackMs) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -54,7 +59,7 @@ function clearRefreshCookie(res) {
 }
 
 async function getSafeUserById(userId) {
-  return User.findById(userId).select("-passwordHash");
+  return User.findById(userId).select("-passwordHash").lean();
 }
 
 async function issueTokensForUser(res, user) {
@@ -88,7 +93,7 @@ async function issueTokensForUser(res, user) {
 export const register = async (req, res) => {
   const { email, password, name, image } = req.body;
 
-  const existing = await User.findOne({ email }).select("_id");
+  const existing = await User.findOne({ email }).select("_id").lean();
   if (existing) throw new AppError("Email already registered", 409);
 
   const passwordHash = await bcrypt.hash(String(password), 12);
@@ -110,7 +115,7 @@ export const login = async (req, res) => {
   if (wantsPassword) {
     const userWithPassword = await User.findOne({ email }).select(
       "+passwordHash email role"
-    );
+    ).lean();
 
     if (!userWithPassword) throw new AppError("Invalid email or password", 401);
     if (!userWithPassword.passwordHash)
@@ -127,7 +132,7 @@ export const login = async (req, res) => {
     return sendSuccess(res, { result: safeUser, token: accessToken }, 200);
   }
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email }).select("_id").lean();
   const created = existingUser ? null : await User.create({ email, name, image, role: "user" });
   const finalUserId = existingUser?._id || created?._id;
   if (!finalUserId) throw new AppError("User not found", 500);
@@ -160,7 +165,9 @@ export const refresh = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(tokenId)) throw new AppError("Invalid refresh token", 401);
 
   const tokenHash = hashToken(raw);
-  const tokenDoc = await RefreshToken.findOne({ _id: tokenId, tokenHash });
+  const tokenDoc = await RefreshToken.findOne({ _id: tokenId, tokenHash })
+    .select("_id revokedAt expiresAt")
+    .lean();
   if (!tokenDoc || tokenDoc.revokedAt) throw new AppError("Refresh token revoked", 401);
   if (tokenDoc.expiresAt && tokenDoc.expiresAt.getTime() < Date.now()) {
     throw new AppError("Refresh token expired", 401);
@@ -209,7 +216,8 @@ export const me = async (req, res) => {
 
 export const updateprofile = async (req, res) => {
   const { id: _id } = req.params;
-  const { channelname, description } = req.body;
+  const rawChannelname = req.body?.channelname;
+  const rawDescription = req.body?.description;
 
   const requesterId = req.user?.id;
   const requesterRole = req.user?.role;
@@ -222,16 +230,41 @@ export const updateprofile = async (req, res) => {
     throw new AppError("User unavailable...", 400);
   }
 
+  const update = {};
+  if (rawChannelname !== undefined) {
+    const channelname = String(rawChannelname).trim();
+    if (!channelname) throw new AppError("channelname is required", 400);
+    if (channelname.length > 50) throw new AppError("channelname is too long", 400);
+
+    const rx = new RegExp(`^${escapeRegex(channelname)}$`, "i");
+    const existing = await User.findOne({ channelname: rx, _id: { $ne: _id } })
+      .select("_id")
+      .lean();
+    if (existing) throw new AppError("Channel name already taken", 409);
+    update.channelname = channelname;
+  }
+
+  if (rawDescription !== undefined) {
+    const description = String(rawDescription).trim();
+    if (description.length > 500) throw new AppError("description is too long", 400);
+    update.description = description;
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw new AppError("No fields to update", 400);
+  }
+
   const updatedata = await User.findByIdAndUpdate(
     _id,
     {
       $set: {
-        channelname,
-        description,
+        ...update,
       },
     },
     { new: true }
-  ).select("-passwordHash");
+  )
+    .select("-passwordHash")
+    .lean();
 
   return sendSuccess(res, updatedata, 201);
 };
@@ -242,11 +275,41 @@ export const getuser = async (req, res) => {
     throw new AppError("Invalid user id", 400);
   }
 
-  const existingUser = await User.findById(_id).select("-passwordHash");
+  const existingUser = await User.findById(_id).select("-passwordHash").lean();
   if (!existingUser) {
     throw new AppError("User not found", 404);
   }
 
   return sendSuccess(res, existingUser, 200);
+};
+
+export const updateChannelMedia = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) throw new AppError("Unauthorized", 401);
+
+  const avatarFile = req.files?.avatar?.[0] || null;
+  const bannerFile = req.files?.banner?.[0] || null;
+
+  if (!avatarFile && !bannerFile) {
+    throw new AppError("No files uploaded", 400);
+  }
+
+  const update = {};
+
+  if (avatarFile) {
+    const uploaded = await uploadThumbnailFile(avatarFile);
+    update.image = uploaded.secure_url;
+  }
+
+  if (bannerFile) {
+    const uploaded = await uploadThumbnailFile(bannerFile);
+    update.bannerUrl = uploaded.secure_url;
+  }
+
+  const updated = await User.findByIdAndUpdate(userId, { $set: update }, { new: true })
+    .select("-passwordHash")
+    .lean();
+
+  return sendSuccess(res, updated, 200);
 };
 

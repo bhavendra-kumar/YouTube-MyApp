@@ -1,6 +1,6 @@
 import express from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { getallvideo, getvideobyid, uploadVideo } from "../controllers/video.js";
+import { deleteMyVideo, getallvideo, getHomeFeed, getShortsFeed, getvideobyid, postWatchTime, updateMyVideo, uploadVideo } from "../controllers/video.js";
 import upload from "../utils/upload.js";
 import authMiddleware from "../middleware/auth.js";
 
@@ -19,6 +19,13 @@ routes.post(
 	asyncHandler(uploadVideo)
 );
 routes.get("/getall", asyncHandler(getallvideo));
+routes.get("/home", asyncHandler(getHomeFeed));
+routes.get("/homefeed", asyncHandler(getHomeFeed));
+routes.get("/shorts", asyncHandler(getShortsFeed));
+routes.get("/recommended", authMiddleware, asyncHandler(getHomeFeed));
+routes.post("/watchtime", asyncHandler(postWatchTime));
+routes.patch("/:id", authMiddleware, asyncHandler(updateMyVideo));
+routes.delete("/:id", authMiddleware, asyncHandler(deleteMyVideo));
 routes.get("/:id", asyncHandler(getvideobyid));
 
 export default routes;

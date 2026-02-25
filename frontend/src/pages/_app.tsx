@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import BottomNav from "@/components/BottomNav";
 import Head from "next/head";
 import { Toaster } from "react-hot-toast";
 import "@/styles/globals.css";
@@ -22,16 +23,19 @@ export default function App({ Component, pageProps }: AppPropsWithAuth) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <UserProvider>
         <SidebarProvider>
-          <div className="min-h-screen bg-background text-foreground">
+          <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
             <Head>
               <title>YouTube</title>
             </Head>
             <Header />
             <Toaster />
-            <div className="flex">
+            <div className="flex flex-1 min-h-0">
               <Sidebar />
-              {content}
+              <div className="flex-1 min-w-0">
+                {content}
+              </div>
             </div>
+            <BottomNav />
           </div>
         </SidebarProvider>
       </UserProvider>

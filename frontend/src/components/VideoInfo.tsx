@@ -2,12 +2,26 @@ import React, { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import {
+  Code,
   Clock,
   Download,
+  Facebook,
+  Link2,
+  ListPlus,
+  Mail,
   MoreHorizontal,
   Share,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/context/AuthContext";
@@ -18,7 +32,7 @@ import Link from "next/link";
 import { buildMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-const VideoInfo = ({ video }: any) => {
+const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [likes, setlikes] = useState<number>(Number(video?.Like ?? 0));
   const [dislikes, setDislikes] = useState<number>(Number(video?.Dislike ?? 0));
   const [isLiked, setIsLiked] = useState(false);
@@ -26,8 +40,17 @@ const VideoInfo = ({ video }: any) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const { user } = useUser();
   const [isWatchLater, setIsWatchLater] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [playlists, setPlaylists] = useState<Array<any>>([]);
+  const [playlistBusyId, setPlaylistBusyId] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [startAtEnabled, setStartAtEnabled] = useState(false);
+  const [startAtTime, setStartAtTime] = useState("0:00");
+  const shareWasOpenRef = useRef(false);
   const lastHistoryKeyRef = useRef<string | null>(null);
 
   // const user: any = {
@@ -42,7 +65,106 @@ const VideoInfo = ({ video }: any) => {
     setIsLiked(false);
     setIsDisliked(false);
     setIsWatchLater(false);
+    setSaveOpen(false);
   }, [video]);
+
+  const isVideoInPlaylist = (p: any) => {
+    const ids = Array.isArray(p?.videos) ? p.videos : [];
+    return ids.some((x: any) => String(x) === String(video?._id));
+  };
+
+  const loadPlaylists = async () => {
+    if (!user?._id) {
+      notify.info("Sign in to save to playlists");
+      return;
+    }
+
+    try {
+      setPlaylistsLoading(true);
+      const res = await axiosClient.get("/playlist/mine");
+      setPlaylists(Array.isArray(res.data?.items) ? res.data.items : []);
+    } catch (e) {
+      console.error(e);
+      notify.error("Could not load playlists");
+      setPlaylists([]);
+    } finally {
+      setPlaylistsLoading(false);
+    }
+  };
+
+  const togglePlaylist = async (playlistId: string) => {
+    if (!user?._id) {
+      notify.info("Sign in to save to playlists");
+      return;
+    }
+    if (!video?._id) return;
+
+    const current = playlists.find((p) => String(p?._id) === String(playlistId));
+    if (!current) return;
+
+    const wasIn = isVideoInPlaylist(current);
+    const prev = playlists;
+
+    // Optimistic update
+    setPlaylists((items) =>
+      items.map((p) => {
+        if (String(p?._id) !== String(playlistId)) return p;
+        const ids = Array.isArray(p?.videos) ? p.videos.map(String) : [];
+        const vid = String(video._id);
+        const nextIds = wasIn
+          ? ids.filter((x: string) => x !== vid)
+          : Array.from(new Set([...ids, vid]));
+        return { ...p, videos: nextIds };
+      })
+    );
+
+    try {
+      setPlaylistBusyId(String(playlistId));
+      if (wasIn) {
+        await axiosClient.delete(`/playlist/${playlistId}/videos/${video._id}`);
+        notify.success("Removed from playlist");
+      } else {
+        await axiosClient.post(`/playlist/${playlistId}/videos`, { videoId: video._id });
+        notify.success("Saved to playlist");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setPlaylists(prev);
+      notify.error(e?.response?.data?.message || "Could not update playlist");
+    } finally {
+      setPlaylistBusyId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShareUrl(window.location.href);
+  }, [video?._id]);
+
+  useEffect(() => {
+    if (!shareOpen) {
+      shareWasOpenRef.current = false;
+      return;
+    }
+    if (shareWasOpenRef.current) return;
+    shareWasOpenRef.current = true;
+
+    if (typeof window === "undefined") return;
+    setShareUrl(window.location.href);
+    setStartAtEnabled(false);
+    const s = Math.max(
+      0,
+      Math.floor(typeof currentTimeSeconds === "number" ? currentTimeSeconds : 0)
+    );
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    setStartAtTime(
+      h > 0
+        ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+        : `${m}:${String(sec).padStart(2, "0")}`
+    );
+  }, [shareOpen, currentTimeSeconds]);
 
   useEffect(() => {
     if (!video?._id) return;
@@ -271,10 +393,51 @@ const VideoInfo = ({ video }: any) => {
     }
   };
 
-  const handleShare = async () => {
+  const parseStartAtSeconds = (value: string) => {
+    const raw = String(value || "").trim();
+    if (!raw) return undefined;
+    const parts = raw.split(":").map((p) => p.trim());
+    if (parts.some((p) => p === "" || !/^\d+$/.test(p))) return undefined;
+    const nums = parts.map((p) => Number(p));
+    if (nums.some((n) => !Number.isFinite(n))) return undefined;
+    if (nums.length === 1) {
+      return nums[0];
+    }
+    if (nums.length === 2) {
+      const [m, s] = nums;
+      if (s > 59) return undefined;
+      return m * 60 + s;
+    }
+    if (nums.length === 3) {
+      const [h, m, s] = nums;
+      if (m > 59 || s > 59) return undefined;
+      return h * 3600 + m * 60 + s;
+    }
+    return undefined;
+  };
+
+  const buildShareUrl = (base: string, seconds?: number) => {
+    try {
+      const u = new URL(base);
+      u.searchParams.delete("t");
+      if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {
+        u.searchParams.set("t", String(Math.floor(seconds)));
+      }
+      return u.toString();
+    } catch {
+      return base;
+    }
+  };
+
+  const currentStartAtSeconds = startAtEnabled
+    ? parseStartAtSeconds(startAtTime)
+    : undefined;
+  const finalShareUrl = buildShareUrl(shareUrl || "", currentStartAtSeconds);
+
+  const handleCopyShareLink = async () => {
     try {
       if (typeof window === "undefined") return;
-      const url = window.location.href;
+      const url = finalShareUrl || shareUrl || window.location.href;
 
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -287,6 +450,46 @@ const VideoInfo = ({ video }: any) => {
     } catch (e) {
       console.error(e);
       notify.error("Could not copy link");
+    }
+  };
+
+  const openExternalShare = (href: string) => {
+    if (!href) return;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+
+  const shareText = String(video?.videotitle || "").trim() || "Check this video";
+  const encodedUrl = encodeURIComponent(finalShareUrl);
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
+    `${shareText} ${finalShareUrl}`
+  )}`;
+  const facebookHref = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+  const xHref = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(
+    shareText
+  )}`;
+  const emailHref = `mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(
+    finalShareUrl
+  )}`;
+
+  const handleCopyEmbed = async () => {
+    try {
+      if (typeof window === "undefined") return;
+      const url = finalShareUrl || shareUrl || window.location.href;
+      const iframe = `<iframe width="560" height="315" src="${url}" title="${shareText.replace(
+        /\"/g,
+        "&quot;"
+      )}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(iframe);
+        notify.success("Embed code copied");
+        return;
+      }
+
+      prompt("Copy embed code:", iframe);
+    } catch (e) {
+      console.error(e);
+      notify.error("Could not copy embed code");
     }
   };
 
@@ -398,17 +601,214 @@ const VideoInfo = ({ video }: any) => {
             onClick={handleWatchLater}
           >
             <Clock className="w-5 h-5 mr-2" />
-            {isWatchLater ? "Saved" : "Save"}
+            {isWatchLater ? "Saved" : "Watch later"}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full bg-muted"
-            onClick={handleShare}
+
+          <Dialog
+            open={saveOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                if (!user?._id) {
+                  notify.info("Sign in to save to playlists");
+                  return;
+                }
+                setSaveOpen(true);
+                void loadPlaylists();
+                return;
+              }
+              setSaveOpen(false);
+            }}
           >
-            <Share className="w-5 h-5 mr-2" />
-            Share
-          </Button>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="rounded-full bg-muted">
+                <ListPlus className="w-5 h-5 mr-2" />
+                Save
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Save to playlist</DialogTitle>
+              </DialogHeader>
+
+              {playlistsLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : playlists.length === 0 ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">No playlists yet.</div>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/playlists">Create a playlist</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {playlists.map((p) => {
+                    const checked = isVideoInPlaylist(p);
+                    const busy = playlistBusyId && String(playlistBusyId) === String(p._id);
+                    return (
+                      <button
+                        key={p._id}
+                        type="button"
+                        onClick={() => void togglePlaylist(String(p._id))}
+                        disabled={Boolean(busy)}
+                        className="flex w-full items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-left hover:bg-muted/40 disabled:opacity-60"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium line-clamp-1">{p.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(Array.isArray(p.videos) ? p.videos.length : 0).toLocaleString()} videos
+                            {p.visibility ? ` • ${p.visibility}` : ""}
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          readOnly
+                          className="h-4 w-4 accent-red-600"
+                        />
+                      </button>
+                    );
+                  })}
+
+                  <div className="pt-2">
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/playlists">Manage playlists</Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="rounded-full bg-muted">
+                <Share className="w-5 h-5 mr-2" />
+                Share
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Share</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium">Share in a post</div>
+                <Button
+                  variant="secondary"
+                  className="rounded-full"
+                  onClick={() => notify.info("Create post is not available yet")}
+                >
+                  Create post
+                </Button>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="flex items-start gap-4 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={handleCopyEmbed}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Code className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Embed</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(whatsappHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Share className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(facebookHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Facebook className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Facebook</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(xHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <X className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">X</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(emailHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Mail className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={handleCopyShareLink}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Link2 className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Copy</span>
+                </button>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <Input readOnly value={finalShareUrl} className="rounded-full" />
+                <Button onClick={handleCopyShareLink} disabled={!shareUrl} className="rounded-full">
+                  Copy
+                </Button>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  id="share-start-at"
+                  type="checkbox"
+                  checked={startAtEnabled}
+                  onChange={(e) => setStartAtEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border border-input bg-background text-primary"
+                />
+                <label htmlFor="share-start-at" className="text-sm text-muted-foreground">
+                  Start at
+                </label>
+                <Input
+                  value={startAtTime}
+                  onChange={(e) => setStartAtTime(e.target.value)}
+                  disabled={!startAtEnabled}
+                  className="h-9 w-24 rounded-full"
+                  placeholder="0:00"
+                />
+                {startAtEnabled && typeof currentStartAtSeconds === "undefined" ? (
+                  <span className="text-xs text-destructive">Use mm:ss</span>
+                ) : null}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button
             variant="ghost"
             size="sm"

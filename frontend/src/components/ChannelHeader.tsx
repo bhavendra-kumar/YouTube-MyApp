@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import axiosClient from "@/services/http/axios";
 import { notify } from "@/services/toast";
+import { buildMediaUrl } from "@/lib/media";
 
 const ChannelHeader = ({ channel, user }: any) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -78,12 +79,26 @@ const ChannelHeader = ({ channel, user }: any) => {
   return (
     <div className="w-full">
       {/* Banner */}
-      <div className="relative h-32 md:h-48 lg:h-64 bg-gradient-to-r from-blue-400 to-purple-500 overflow-hidden"></div>
+      <div className="relative h-32 md:h-48 lg:h-64 overflow-hidden bg-muted">
+        {channel?.bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={buildMediaUrl(channel.bannerUrl)}
+            alt="Channel banner"
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+      </div>
 
       {/* Channel Info */}
       <div className="px-4 py-6">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <Avatar className="w-20 h-20 md:w-32 md:h-32">
+            {channel?.image ? (
+              <AvatarImage src={buildMediaUrl(channel.image)} alt={channelName || "Channel"} />
+            ) : null}
             <AvatarFallback className="text-2xl">
               {avatarLetter}
             </AvatarFallback>

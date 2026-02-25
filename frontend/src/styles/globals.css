@@ -49,6 +49,7 @@
 
 :root {
   --radius: 0.625rem;
+  --yt-bottom-nav-h: 56px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -80,6 +81,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --yt-bottom-nav-h: 0px;
+  }
 }
 
 .dark {
@@ -122,5 +129,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    padding-bottom: calc(var(--yt-bottom-nav-h) + env(safe-area-inset-bottom));
   }
 }

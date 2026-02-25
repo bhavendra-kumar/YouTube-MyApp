@@ -3,6 +3,9 @@ import Comment from "../models/comment.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
+const COMMENT_LIST_SELECT =
+  "videoid userid commentbody usercommented commentedon createdAt";
+
 export const postcomment = async (req, res) => {
   const commentdata = { ...req.body };
   if (req.user?.id) {
@@ -34,14 +37,17 @@ export const getallcomment = async (req, res) => {
   const skip = (currentPage - 1) * limit;
 
   const commentvideo = await Comment.find(query)
+    .select(COMMENT_LIST_SELECT)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
   return sendSuccess(
     res,
     {
       items: commentvideo,
+      total,
       totalPages,
       currentPage,
     },
@@ -55,7 +61,7 @@ export const deletecomment = async (req, res) => {
     throw new AppError("comment unavailable", 404);
   }
 
-  const existing = await Comment.findById(_id).select("userid videoid");
+  const existing = await Comment.findById(_id).select("userid videoid").lean();
   if (!existing) {
     throw new AppError("comment unavailable", 404);
   }
@@ -63,7 +69,7 @@ export const deletecomment = async (req, res) => {
     throw new AppError("Forbidden", 403);
   }
 
-  const deleted = await Comment.findByIdAndDelete(_id);
+  const deleted = await Comment.findByIdAndDelete(_id).select("videoid").lean();
 
   if (deleted) {
     const io = req.app.get("io");
@@ -84,7 +90,7 @@ export const editcomment = async (req, res) => {
   }
 
   // Only the author can edit (best-effort; relies on stored userid)
-  const existing = await Comment.findById(_id).select("userid videoid");
+  const existing = await Comment.findById(_id).select("userid videoid").lean();
   if (!existing) {
     throw new AppError("comment unavailable", 404);
   }
@@ -96,7 +102,9 @@ export const editcomment = async (req, res) => {
     _id,
     { $set: { commentbody } },
     { new: true }
-  );
+  )
+    .select(COMMENT_LIST_SELECT)
+    .lean();
 
   if (updatecomment) {
     const io = req.app.get("io");

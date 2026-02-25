@@ -149,13 +149,20 @@ export default function HistoryContent() {
 
       <div className="space-y-4">
         {history.map((item) => (
-          <div key={item._id} className="flex gap-4 group">
-            <Link href={`/watch/${item.videoid._id}`} className="flex-shrink-0">
-              <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
-                <video
-                  src={buildMediaUrl(item.videoid?.filepath)}
-                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                />
+          <div key={item._id} className="group flex flex-col gap-4 sm:flex-row">
+            <Link href={`/watch/${item.videoid._id}`} className="w-full flex-shrink-0 sm:w-40" aria-label={item.videoid?.videotitle || "Watch video"}>
+              <div className="relative aspect-video w-full bg-gray-100 rounded overflow-hidden">
+                {item.videoid?.thumbnailUrl ? (
+                  <img
+                    src={item.videoid.thumbnailUrl}
+                    alt={`${item.videoid.videotitle} thumbnail`}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                ) : (
+                  <div className="h-full w-full" aria-hidden="true" />
+                )}
               </div>
             </Link>
 
@@ -183,6 +190,7 @@ export default function HistoryContent() {
                   variant="ghost"
                   size="icon"
                   className="opacity-0 group-hover:opacity-100"
+                  aria-label="More actions"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </Button>

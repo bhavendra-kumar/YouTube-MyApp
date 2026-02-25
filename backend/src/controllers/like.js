@@ -4,6 +4,9 @@ import Dislike from "../models/dislike.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
+const VIDEO_LIST_SELECT =
+  "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
+
 async function syncCounts(videoId) {
   const [likesCount, dislikesCount] = await Promise.all([
     Like.countDocuments({ videoid: videoId }),
@@ -14,7 +17,9 @@ async function syncCounts(videoId) {
     videoId,
     { $set: { Like: likesCount, Dislike: dislikesCount } },
     { new: true }
-  ).select("Like Dislike");
+  )
+    .select("Like Dislike")
+    .lean();
 
   return {
     likesCount,
@@ -36,7 +41,7 @@ export const handlelike = async (req, res) => {
     throw new AppError("userId does not match token", 403);
   }
 
-  const videoExists = await Video.findById(videoId).select("_id");
+  const videoExists = await Video.findById(videoId).select("_id").lean();
   if (!videoExists) {
     throw new AppError("Video not found", 404);
   }
@@ -123,8 +128,8 @@ export const getReactionStatus = async (req, res) => {
   }
 
   const [likedDoc, dislikedDoc] = await Promise.all([
-    Like.findOne({ viewer: userId, videoid: videoId }).select("_id"),
-    Dislike.findOne({ viewer: userId, videoid: videoId }).select("_id"),
+    Like.findOne({ viewer: userId, videoid: videoId }).select("_id").lean(),
+    Dislike.findOne({ viewer: userId, videoid: videoId }).select("_id").lean(),
   ]);
 
   return sendSuccess(
@@ -148,12 +153,24 @@ export const getallLikedVideo = async (req, res) => {
     throw new AppError("userId does not match token", 403);
   }
 
+  const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "10"), 10);
+
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+  const limit = Math.min(limitUncapped, 50);
+  const skip = (page - 1) * limit;
+
   const likevideo = await Like.find({ viewer: userId })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .populate({
       path: "videoid",
       model: "videofiles",
+      select: VIDEO_LIST_SELECT,
     })
-    .exec();
+    .lean();
 
   return sendSuccess(res, likevideo, 200);
 };

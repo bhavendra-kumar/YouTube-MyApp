@@ -8,6 +8,7 @@ const userschema = mongoose.Schema({
   channelname: { type: String },
   description: { type: String },
   image: { type: String },
+  bannerUrl: { type: String },
   joinedon: { type: Date, default: Date.now },
 });
 

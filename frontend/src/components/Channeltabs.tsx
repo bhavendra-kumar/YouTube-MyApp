@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "./ui/button";
+
 const tabs = [
   { id: "home", label: "Home" },
   { id: "videos", label: "Videos" },
@@ -7,9 +8,20 @@ const tabs = [
   { id: "playlists", label: "Playlists" },
   { id: "community", label: "Community" },
   { id: "about", label: "About" },
-];
-const Channeltabs = () => {
-  const [activeTab, setActiveTab] = useState("videos");
+ ] as const;
+
+type ChannelTabId = (typeof tabs)[number]["id"];
+
+type ChannelTabsProps = {
+  activeTab?: ChannelTabId;
+  onChange?: (tab: ChannelTabId) => void;
+};
+
+const Channeltabs = ({ activeTab = "videos", onChange }: ChannelTabsProps) => {
+  const setActiveTab = (tab: ChannelTabId) => {
+    if (typeof onChange === "function") onChange(tab);
+  };
+
   return (
     <div className="border-b px-4">
       <div className="flex gap-8 overflow-x-auto">

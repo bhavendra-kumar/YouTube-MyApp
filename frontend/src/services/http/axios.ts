@@ -76,7 +76,8 @@ export function createAxiosClient(): AxiosInstance {
         body &&
         typeof body === "object" &&
         Object.prototype.hasOwnProperty.call(body, "success") &&
-        Object.prototype.hasOwnProperty.call(body, "data")
+        Object.prototype.hasOwnProperty.call(body, "data") &&
+        Object.keys(body).length === 2
       ) {
         response.data = body.data;
       }

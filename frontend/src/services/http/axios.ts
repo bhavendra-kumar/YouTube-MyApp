@@ -17,7 +17,12 @@ type AxiosConfigWithFlags = AxiosRequestConfig & {
   skipAuthRefresh?: boolean;
 };
 
-const baseURL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const DEFAULT_BACKEND_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://youtube-myapp.onrender.com"
+    : "http://localhost:5000";
+
+const baseURL = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim() || DEFAULT_BACKEND_URL;
 
 let refreshInFlight: Promise<string | null> | null = null;
 

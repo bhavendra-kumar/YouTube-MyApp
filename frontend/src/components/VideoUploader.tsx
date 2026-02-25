@@ -9,15 +9,9 @@ import axiosClient from "@/services/http/axios";
 import { useUser } from "@/context/AuthContext";
 import { notify } from "@/services/toast";
 
-const VideoUploader = ({ channelId, channelName }: any) => {
+const VideoUploader = ({ channelId, channelName, initialContentType }: any) => {
   const router = useRouter();
   const { user } = useUser();
-
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-    }
-  }, [user, router]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -26,10 +20,62 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   const [captionFile, setCaptionFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [contentType, setContentType] = useState<"video" | "short">(
+    initialContentType === "short" ? "short" : "video"
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const captionInputRef = useRef<HTMLInputElement>(null);
-  const handlefilechange = (e: ChangeEvent<HTMLInputElement>) => {
+
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
+
+  const validateShortConstraints = async (file: File) => {
+    // YouTube Shorts are typically vertical and <= 60s.
+    // We keep it lightweight: just validate duration when possible.
+    try {
+      const url = URL.createObjectURL(file);
+      const el = document.createElement("video");
+      el.preload = "metadata";
+      el.src = url;
+      await new Promise<void>((resolve, reject) => {
+        el.onloadedmetadata = () => resolve();
+        el.onerror = () => reject(new Error("metadata"));
+      });
+
+      const duration = Number.isFinite(el.duration) ? el.duration : 0;
+      URL.revokeObjectURL(url);
+      if (duration > 60) {
+        notify.error("Shorts must be 60 seconds or less");
+        return false;
+      }
+      return true;
+    } catch {
+      // If metadata can't be read, don't hard-fail the upload.
+      return true;
+    }
+  };
+
+  useEffect(() => {
+    if (!videoFile) return;
+    if (contentType !== "short") return;
+    void (async () => {
+      const ok = await validateShortConstraints(videoFile);
+      if (!ok) {
+        setVideoFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    })();
+    // validateShortConstraints is stable enough for our usage here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentType, videoFile]);
+
+  const handlefilechange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -41,6 +87,12 @@ const VideoUploader = ({ channelId, channelName }: any) => {
         notify.error("File size exceeds 100MB limit.");
         return;
       }
+
+      if (contentType === "short") {
+        const ok = await validateShortConstraints(file);
+        if (!ok) return;
+      }
+
       setVideoFile(file);
       const filename = file.name;
       if (!videoTitle) {
@@ -103,6 +155,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     formdata.append("videotitle", videoTitle);
     formdata.append("videochanel", channelName);
     formdata.append("uploader", channelId);
+    formdata.append("contentType", contentType);
     try {
       setIsUploading(true);
       setUploadProgress(0);
@@ -137,7 +190,34 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   };
   return (
     <div className="rounded-lg border bg-card p-6">
-      <h2 className="text-xl font-semibold mb-4">Upload a video</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-semibold">
+          {contentType === "short" ? "Upload a Short" : "Upload a video"}
+        </h2>
+
+        <div className="flex items-center rounded-full bg-muted p-1">
+          <Button
+            type="button"
+            variant={contentType === "video" ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-full"
+            onClick={() => setContentType("video")}
+            disabled={isUploading || uploadComplete}
+          >
+            Video
+          </Button>
+          <Button
+            type="button"
+            variant={contentType === "short" ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-full"
+            onClick={() => setContentType("short")}
+            disabled={isUploading || uploadComplete}
+          >
+            Short
+          </Button>
+        </div>
+      </div>
 
       <div className="space-y-4">
         {!videoFile ? (
@@ -147,13 +227,14 @@ const VideoUploader = ({ channelId, channelName }: any) => {
           >
             <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
             <p className="text-lg font-medium">
-              Drag and drop video files to upload
+              Drag and drop {contentType === "short" ? "Short" : "video"} files to upload
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               or click to select files
             </p>
             <p className="text-xs text-muted-foreground mt-4">
               MP4, WebM, MOV or AVI • Up to 100MB
+              {contentType === "short" ? " • Up to 60 seconds" : ""}
             </p>
             <input
               type="file"
@@ -228,7 +309,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                   ) : null}
                 </div>
                 {thumbnailFile ? (
-                  <p className="text-xs text-gray-500 mt-1 truncate">
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
                     Selected: {thumbnailFile.name}
                   </p>
                 ) : null}
@@ -276,11 +357,11 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                   ) : null}
                 </div>
                 {captionFile ? (
-                  <p className="text-xs text-gray-500 mt-1 truncate">
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
                     Selected: {captionFile.name}
                   </p>
                 ) : (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Upload WebVTT (example: captions.en.vtt)
                   </p>
                 )}

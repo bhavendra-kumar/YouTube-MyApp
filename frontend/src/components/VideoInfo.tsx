@@ -2,12 +2,25 @@ import React, { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import {
+  Code,
   Clock,
   Download,
+  Facebook,
+  Link2,
+  Mail,
   MoreHorizontal,
   Share,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/context/AuthContext";
@@ -18,7 +31,7 @@ import Link from "next/link";
 import { buildMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-const VideoInfo = ({ video }: any) => {
+const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [likes, setlikes] = useState<number>(Number(video?.Like ?? 0));
   const [dislikes, setDislikes] = useState<number>(Number(video?.Dislike ?? 0));
   const [isLiked, setIsLiked] = useState(false);
@@ -28,6 +41,11 @@ const VideoInfo = ({ video }: any) => {
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [startAtEnabled, setStartAtEnabled] = useState(false);
+  const [startAtTime, setStartAtTime] = useState("0:00");
+  const shareWasOpenRef = useRef(false);
   const lastHistoryKeyRef = useRef<string | null>(null);
 
   // const user: any = {
@@ -43,6 +61,36 @@ const VideoInfo = ({ video }: any) => {
     setIsDisliked(false);
     setIsWatchLater(false);
   }, [video]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShareUrl(window.location.href);
+  }, [video?._id]);
+
+  useEffect(() => {
+    if (!shareOpen) {
+      shareWasOpenRef.current = false;
+      return;
+    }
+    if (shareWasOpenRef.current) return;
+    shareWasOpenRef.current = true;
+
+    if (typeof window === "undefined") return;
+    setShareUrl(window.location.href);
+    setStartAtEnabled(false);
+    const s = Math.max(
+      0,
+      Math.floor(typeof currentTimeSeconds === "number" ? currentTimeSeconds : 0)
+    );
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    setStartAtTime(
+      h > 0
+        ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+        : `${m}:${String(sec).padStart(2, "0")}`
+    );
+  }, [shareOpen, currentTimeSeconds]);
 
   useEffect(() => {
     if (!video?._id) return;
@@ -271,10 +319,51 @@ const VideoInfo = ({ video }: any) => {
     }
   };
 
-  const handleShare = async () => {
+  const parseStartAtSeconds = (value: string) => {
+    const raw = String(value || "").trim();
+    if (!raw) return undefined;
+    const parts = raw.split(":").map((p) => p.trim());
+    if (parts.some((p) => p === "" || !/^\d+$/.test(p))) return undefined;
+    const nums = parts.map((p) => Number(p));
+    if (nums.some((n) => !Number.isFinite(n))) return undefined;
+    if (nums.length === 1) {
+      return nums[0];
+    }
+    if (nums.length === 2) {
+      const [m, s] = nums;
+      if (s > 59) return undefined;
+      return m * 60 + s;
+    }
+    if (nums.length === 3) {
+      const [h, m, s] = nums;
+      if (m > 59 || s > 59) return undefined;
+      return h * 3600 + m * 60 + s;
+    }
+    return undefined;
+  };
+
+  const buildShareUrl = (base: string, seconds?: number) => {
+    try {
+      const u = new URL(base);
+      u.searchParams.delete("t");
+      if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {
+        u.searchParams.set("t", String(Math.floor(seconds)));
+      }
+      return u.toString();
+    } catch {
+      return base;
+    }
+  };
+
+  const currentStartAtSeconds = startAtEnabled
+    ? parseStartAtSeconds(startAtTime)
+    : undefined;
+  const finalShareUrl = buildShareUrl(shareUrl || "", currentStartAtSeconds);
+
+  const handleCopyShareLink = async () => {
     try {
       if (typeof window === "undefined") return;
-      const url = window.location.href;
+      const url = finalShareUrl || shareUrl || window.location.href;
 
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
@@ -287,6 +376,46 @@ const VideoInfo = ({ video }: any) => {
     } catch (e) {
       console.error(e);
       notify.error("Could not copy link");
+    }
+  };
+
+  const openExternalShare = (href: string) => {
+    if (!href) return;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+
+  const shareText = String(video?.videotitle || "").trim() || "Check this video";
+  const encodedUrl = encodeURIComponent(finalShareUrl);
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
+    `${shareText} ${finalShareUrl}`
+  )}`;
+  const facebookHref = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+  const xHref = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(
+    shareText
+  )}`;
+  const emailHref = `mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(
+    finalShareUrl
+  )}`;
+
+  const handleCopyEmbed = async () => {
+    try {
+      if (typeof window === "undefined") return;
+      const url = finalShareUrl || shareUrl || window.location.href;
+      const iframe = `<iframe width="560" height="315" src="${url}" title="${shareText.replace(
+        /\"/g,
+        "&quot;"
+      )}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(iframe);
+        notify.success("Embed code copied");
+        return;
+      }
+
+      prompt("Copy embed code:", iframe);
+    } catch (e) {
+      console.error(e);
+      notify.error("Could not copy embed code");
     }
   };
 
@@ -400,15 +529,136 @@ const VideoInfo = ({ video }: any) => {
             <Clock className="w-5 h-5 mr-2" />
             {isWatchLater ? "Saved" : "Save"}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full bg-muted"
-            onClick={handleShare}
-          >
-            <Share className="w-5 h-5 mr-2" />
-            Share
-          </Button>
+          <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="rounded-full bg-muted">
+                <Share className="w-5 h-5 mr-2" />
+                Share
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Share</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium">Share in a post</div>
+                <Button
+                  variant="secondary"
+                  className="rounded-full"
+                  onClick={() => notify.info("Create post is not available yet")}
+                >
+                  Create post
+                </Button>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="flex items-start gap-4 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={handleCopyEmbed}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Code className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Embed</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(whatsappHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Share className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(facebookHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Facebook className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Facebook</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(xHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <X className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">X</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={() => openExternalShare(emailHref)}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Mail className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-[72px] flex-col items-center gap-2"
+                  disabled={!shareUrl}
+                  onClick={handleCopyShareLink}
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+                    <Link2 className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Copy</span>
+                </button>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <Input readOnly value={finalShareUrl} className="rounded-full" />
+                <Button onClick={handleCopyShareLink} disabled={!shareUrl} className="rounded-full">
+                  Copy
+                </Button>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  id="share-start-at"
+                  type="checkbox"
+                  checked={startAtEnabled}
+                  onChange={(e) => setStartAtEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border border-input bg-background text-primary"
+                />
+                <label htmlFor="share-start-at" className="text-sm text-muted-foreground">
+                  Start at
+                </label>
+                <Input
+                  value={startAtTime}
+                  onChange={(e) => setStartAtTime(e.target.value)}
+                  disabled={!startAtEnabled}
+                  className="h-9 w-24 rounded-full"
+                  placeholder="0:00"
+                />
+                {startAtEnabled && typeof currentStartAtSeconds === "undefined" ? (
+                  <span className="text-xs text-destructive">Use mm:ss</span>
+                ) : null}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button
             variant="ghost"
             size="sm"

@@ -40,6 +40,7 @@ interface VideoPlayerProps {
   onNext?: () => void;
   canPrev?: boolean;
   canNext?: boolean;
+  onPlaybackTimeChange?: (seconds: number) => void;
 }
 
 function formatTime(totalSeconds: number) {
@@ -57,6 +58,7 @@ export default function VideoPlayer({
   onNext,
   canPrev,
   canNext,
+  onPlaybackTimeChange,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +66,9 @@ export default function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+
+  const lastReportedSecondRef = useRef<number>(-1);
+  const lastReportedAtRef = useRef<number>(0);
 
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -181,7 +186,18 @@ export default function VideoPlayer({
     if (!el) return;
     setIsPlaying(!el.paused);
     setDuration(Number.isFinite(el.duration) ? el.duration : 0);
-    setCurrentTime(Number.isFinite(el.currentTime) ? el.currentTime : 0);
+    const nextTime = Number.isFinite(el.currentTime) ? el.currentTime : 0;
+    setCurrentTime(nextTime);
+
+    if (onPlaybackTimeChange) {
+      const sec = Math.max(0, Math.floor(nextTime));
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (sec !== lastReportedSecondRef.current && now - lastReportedAtRef.current > 200) {
+        lastReportedSecondRef.current = sec;
+        lastReportedAtRef.current = now;
+        onPlaybackTimeChange(sec);
+      }
+    }
     setIsMuted(Boolean(el.muted));
     setVolume(typeof el.volume === "number" ? el.volume : 1);
     const nextRate = typeof el.playbackRate === "number" ? el.playbackRate : 1;

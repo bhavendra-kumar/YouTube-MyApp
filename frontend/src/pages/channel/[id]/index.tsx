@@ -17,22 +17,39 @@ const index = () => {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "home" | "videos" | "shorts" | "playlists" | "community" | "about"
+  >("videos");
   const channelId = useMemo(() => (typeof id === "string" ? id : ""), [id]);
 
-  const load = async () => {
+  const loadChannel = async () => {
+    const channelRes = await axiosClient.get(`/user/${channelId}`);
+    const channelData = (channelRes as any)?.data?.data ?? (channelRes as any)?.data ?? null;
+    setChannel(channelData);
+    return channelData;
+  };
+
+  const loadVideos = async (tab: typeof activeTab) => {
+    const contentType = tab === "shorts" ? "short" : "video";
+    const videosRes = await axiosClient.get("/video/getall", {
+      params: { uploader: channelId, page: 1, contentType },
+    });
+    const items = videosRes.data?.items;
+    setVideos(Array.isArray(items) ? items : []);
+  };
+
+  const load = async (tab = activeTab) => {
     if (!router.isReady) return;
     if (!channelId) return;
 
     try {
-      const [channelRes, videosRes] = await Promise.all([
-        axiosClient.get(`/user/${channelId}`),
-        axiosClient.get("/video/getall", { params: { uploader: channelId, page: 1 } }),
-      ]);
-      const channelData = (channelRes as any)?.data?.data ?? (channelRes as any)?.data ?? null;
-      setChannel(channelData);
-
-      const items = videosRes.data?.items;
-      setVideos(Array.isArray(items) ? items : []);
+      setLoading(true);
+      await loadChannel();
+      if (tab === "about") {
+        setVideos([]);
+      } else {
+        await loadVideos(tab);
+      }
     } catch (e) {
       console.error("Error fetching channel data:", e);
       setChannel(null);
@@ -43,8 +60,9 @@ const index = () => {
   };
 
   useEffect(() => {
-    load();
-  }, [channelId, router.isReady]);
+    void load(activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, channelId, router.isReady]);
 
   useEffect(() => {
     const onUploaded = (event: Event) => {
@@ -52,6 +70,13 @@ const index = () => {
       const uploader = detail?.uploader;
       if (!uploader) return;
       if (String(uploader) !== String(channelId)) return;
+
+      // If user is on Shorts tab, don't optimistically inject videos of unknown type.
+      if (activeTab === "shorts") {
+        setLoading(true);
+        load(activeTab);
+        return;
+      }
 
       const uploaded = detail?.video;
       if (uploaded && uploaded._id) {
@@ -72,7 +97,7 @@ const index = () => {
         );
       };
     }
-  }, [channelId]);
+  }, [activeTab, channelId]);
 
   if (loading) {
     return <div className="flex-1 p-4">Loading channel...</div>;
@@ -134,14 +159,45 @@ const index = () => {
     <div className="flex-1 min-h-screen bg-background">
       <div className="max-w-full mx-auto">
         <ChannelHeader channel={channel} user={user} />
-        <Channeltabs />
+        <Channeltabs activeTab={activeTab} onChange={setActiveTab} />
         {user && user?._id === channelId ? (
           <div className="px-4 pb-8">
-            <VideoUploader channelId={channelId} channelName={channel?.channelname} />
+            <VideoUploader
+              channelId={channelId}
+              channelName={channel?.channelname}
+              initialContentType="video"
+            />
           </div>
         ) : null}
         <div className="px-4 pb-8">
-          <ChannelVideos videos={videos} />
+          {activeTab === "about" ? (
+            <div className="rounded-lg border bg-card p-4 text-card-foreground">
+              <h2 className="text-xl font-semibold">About</h2>
+              <div className="mt-3 space-y-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Description: </span>
+                  <span>{channel?.description || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Joined: </span>
+                  <span>
+                    {channel?.joinedon
+                      ? new Date(channel.joinedon).toLocaleDateString()
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "playlists" || activeTab === "community" ? (
+            <div className="rounded-lg border bg-card p-4 text-card-foreground">
+              <h2 className="text-xl font-semibold">{activeTab === "playlists" ? "Playlists" : "Community"}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This section isn’t available yet.
+              </p>
+            </div>
+          ) : (
+            <ChannelVideos videos={videos} />
+          )}
         </div>
       </div>
     </div>

@@ -64,6 +64,9 @@ export const uploadVideo = async (req, res) => {
   const videochanel = String(req.body?.videochanel || "").trim();
   if (!videochanel) throw new AppError("videochanel is required", 400);
 
+  const rawContentType = String(req.body?.contentType || "video").toLowerCase().trim();
+  const contentType = rawContentType === "short" ? "short" : "video";
+
   let videoUpload;
   let thumbnailUpload;
   const captionUploads = [];
@@ -134,6 +137,7 @@ export const uploadVideo = async (req, res) => {
 
   const doc = new Video({
     videotitle,
+    contentType,
     category: req.body.category,
     filename: videoFile.originalname,
     filepath: videoUpload.secure_url,
@@ -168,6 +172,11 @@ export const getallvideo = async (req, res) => {
   const query = {};
   if (req.query.uploader) {
     query.uploader = String(req.query.uploader);
+  }
+
+  const contentType = String(req.query.contentType ?? "").trim().toLowerCase();
+  if (contentType === "short" || contentType === "video") {
+    query.contentType = contentType;
   }
 
   const category = String(req.query.category ?? "").trim();

@@ -48,6 +48,7 @@ const index = () => {
   const { id } = router.query;
 
   const [theaterMode, setTheaterMode] = useState(false);
+  const [playbackSeconds, setPlaybackSeconds] = useState(0);
 
   const videoId = router.isReady && typeof id === "string" ? id : null;
   const { video: currentVideo, relatedVideos, loading, error, reload } = useWatchPageData<any>(videoId);
@@ -192,9 +193,12 @@ const index = () => {
               onNext={goNext}
               canPrev={canPrev}
               canNext={canNext}
+              onPlaybackTimeChange={setPlaybackSeconds}
             />
-            <VideoInfo video={currentVideo} />
-            <Comments videoId={videoId} />
+            <VideoInfo video={currentVideo} currentTimeSeconds={playbackSeconds} />
+            <div id="comments">
+              <Comments videoId={videoId} />
+            </div>
 
             {theaterMode ? (
               <div className="space-y-4">

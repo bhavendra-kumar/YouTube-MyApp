@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useRouter } from "next/router";
 
 import { useUser } from "@/context/AuthContext";
 import VideoUploader from "@/components/VideoUploader";
@@ -6,8 +7,14 @@ import Channeldialogue from "@/components/channeldialogue";
 import { Button } from "@/components/ui/button";
 
 export default function UploadPage() {
+  const router = useRouter();
   const { user } = useUser();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const initialType = (() => {
+    const raw = typeof router.query.type === "string" ? router.query.type : "";
+    return raw.toLowerCase() === "short" ? "short" : "video";
+  })();
 
   const channelName = useMemo(() => {
     return String(user?.channelname || "").trim();
@@ -53,7 +60,11 @@ export default function UploadPage() {
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto w-full max-w-4xl">
-        <VideoUploader channelId={user._id} channelName={channelName} />
+        <VideoUploader
+          channelId={user._id}
+          channelName={channelName}
+          initialContentType={initialType}
+        />
       </div>
     </main>
   );

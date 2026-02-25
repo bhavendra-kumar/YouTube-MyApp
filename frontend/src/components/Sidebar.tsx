@@ -2,11 +2,20 @@ import Link from "next/link"
 import React from "react"
 import { useRouter } from "next/router"
 import {
+    ChevronRight,
     Clock,
     Compass,
+    Cpu,
+    Download,
+    Gamepad2,
     History,
     Home,
+    ListVideo,
+    Music2,
+    Newspaper,
     PlaySquare,
+    Trophy,
+    Video,
     ThumbsUp,
     User,
 } from "lucide-react"
@@ -15,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { useUser } from "@/context/AuthContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { cn } from "@/lib/utils"
+import { notify } from "@/services/toast"
 
 const Sidebar = () => {
     const { user } = useUser()
@@ -24,11 +34,27 @@ const Sidebar = () => {
     const hasChannel = Boolean(String(user?.channelname || "").trim())
 
     const itemClass = cn(
-        "w-full",
-        isCollapsed ? "justify-center" : "justify-start"
+        "w-full rounded-lg",
+        isCollapsed ? "justify-center px-0" : "justify-start px-3"
     )
     const iconClass = cn(isCollapsed ? "h-5 w-5" : "mr-3 h-5 w-5")
     const labelClass = cn(isCollapsed ? "sr-only" : "")
+
+    const sectionHeadingClass = cn(
+        "px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground",
+        isCollapsed ? "sr-only" : ""
+    )
+
+    const youHeading = (
+        <div className={cn("flex items-center justify-between px-3 pt-4 pb-2", isCollapsed ? "sr-only" : "")}>
+            <div className="text-sm font-semibold">You</div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </div>
+    )
+
+    const comingSoon = (label: string) => {
+        notify.info(`${label} coming soon`)
+    }
 
     React.useEffect(() => {
         if (!isMobileOpen) return
@@ -52,7 +78,8 @@ const Sidebar = () => {
     }, [isMobileOpen])
 
     const nav = (
-        <nav className="space-y-1">
+        <nav className={cn("space-y-1", isCollapsed ? "px-1" : "px-2")}>
+            {/* Top */}
             <Button asChild variant="ghost" className={itemClass}>
                 <Link href="/" aria-label="Home">
                     <Home className={iconClass} />
@@ -61,25 +88,27 @@ const Sidebar = () => {
             </Button>
 
             <Button asChild variant="ghost" className={itemClass}>
-                <Link href="/search" aria-label="Explore">
-                    <Compass className={iconClass} />
-                    <span className={labelClass}>Explore</span>
+                <Link href="/shorts" aria-label="Shorts">
+                    <Video className={iconClass} />
+                    <span className={labelClass}>Shorts</span>
                 </Link>
             </Button>
 
             <Button asChild variant="ghost" className={itemClass}>
-                <Link href="/" aria-label="Subscriptions">
+                <Link href="/subscriptions" aria-label="Subscriptions">
                     <PlaySquare className={iconClass} />
                     <span className={labelClass}>Subscriptions</span>
                 </Link>
             </Button>
 
-            {user && (
-                <div className="mt-2 border-t pt-2">
-                    <Button
-                        asChild
-                        variant="ghost"
-                        className={itemClass}>
+            <div className="my-2 border-t" />
+
+            {/* You */}
+            {user ? (
+                <>
+                    {youHeading}
+
+                    <Button asChild variant="ghost" className={itemClass}>
                         <Link href="/history" aria-label="History">
                             <History className={iconClass} />
                             <span className={labelClass}>History</span>
@@ -87,43 +116,109 @@ const Sidebar = () => {
                     </Button>
 
                     <Button
-                        asChild
+                        type="button"
                         variant="ghost"
-                        className={itemClass}>
+                        className={itemClass}
+                        onClick={() => comingSoon("Playlists")}
+                        aria-label="Playlists"
+                    >
+                        <ListVideo className={iconClass} />
+                        <span className={labelClass}>Playlists</span>
+                    </Button>
+
+                    <Button asChild variant="ghost" className={itemClass}>
+                        <Link href="/watch-later" aria-label="Watch later">
+                            <Clock className={iconClass} />
+                            <span className={labelClass}>Watch later</span>
+                        </Link>
+                    </Button>
+
+                    <Button asChild variant="ghost" className={itemClass}>
                         <Link href="/liked" aria-label="Liked videos">
                             <ThumbsUp className={iconClass} />
                             <span className={labelClass}>Liked videos</span>
                         </Link>
                     </Button>
 
-                    <Button
-                        asChild
-                        variant="ghost"
-                        className={itemClass}
-                    >
-                        <Link
-                            href="/watch-later"
-                            aria-label="Watch later"
-                        >
-                            <Clock className={iconClass} />
-                            <span className={labelClass}>Watch later</span>
+                    <Button asChild variant="ghost" className={itemClass}>
+                        <Link href={`/channel/${user._id}`} aria-label="Your videos">
+                            <User className={iconClass} />
+                            <span className={labelClass}>
+                                {hasChannel ? "Your videos" : "Create channel"}
+                            </span>
                         </Link>
                     </Button>
 
                     <Button
-                        asChild
+                        type="button"
                         variant="ghost"
                         className={itemClass}
+                        onClick={() => comingSoon("Downloads")}
+                        aria-label="Downloads"
                     >
-                        <Link href={`/channel/${user._id}`} aria-label="Your channel">
-                            <User className={iconClass} />
-                            <span className={labelClass}>
-                                {hasChannel ? "Your channel" : "Create channel"}
-                            </span>
+                        <Download className={iconClass} />
+                        <span className={labelClass}>Downloads</span>
+                    </Button>
+
+                    <div className="my-2 border-t" />
+                </>
+            ) : null}
+
+            {/* Explore */}
+            <div className={sectionHeadingClass}>Explore</div>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "Music" } }} aria-label="Music">
+                    <Music2 className={iconClass} />
+                    <span className={labelClass}>Music</span>
+                </Link>
+            </Button>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "Movies" } }} aria-label="Movies">
+                    <PlaySquare className={iconClass} />
+                    <span className={labelClass}>Movies</span>
+                </Link>
+            </Button>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "Gaming" } }} aria-label="Gaming">
+                    <Gamepad2 className={iconClass} />
+                    <span className={labelClass}>Gaming</span>
+                </Link>
+            </Button>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "Sports" } }} aria-label="Sports">
+                    <Trophy className={iconClass} />
+                    <span className={labelClass}>Sports</span>
+                </Link>
+            </Button>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "News" } }} aria-label="News">
+                    <Newspaper className={iconClass} />
+                    <span className={labelClass}>News</span>
+                </Link>
+            </Button>
+
+            <Button asChild variant="ghost" className={itemClass}>
+                <Link href={{ pathname: "/search", query: { q: "Technology" } }} aria-label="Technology">
+                    <Cpu className={iconClass} />
+                    <span className={labelClass}>Technology</span>
+                </Link>
+            </Button>
+
+            {!isCollapsed ? (
+                <div className="pt-4">
+                    <Button asChild variant="ghost" className={cn(itemClass, "justify-start") }>
+                        <Link href="/search" aria-label="Explore">
+                            <Compass className={iconClass} />
+                            <span className={labelClass}>Browse all</span>
                         </Link>
                     </Button>
                 </div>
-            )}
+            ) : null}
         </nav>
     )
 

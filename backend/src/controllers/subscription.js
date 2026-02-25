@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 import Subscription from "../models/subscription.js";
+import Video from "../models/video.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+
+function escapeRegex(input) {
+  return String(input).replace(/[.*+?^${}()|[\[\]\\]/g, "\\$&");
+}
 
 export const toggleSubscribe = async (req, res) => {
   const { channelId } = req.params;
@@ -79,6 +84,78 @@ export const getSubscriptionStatus = async (req, res) => {
     {
       subscribed: Boolean(existing),
       subscribers,
+    },
+    200
+  );
+};
+
+export const getSubscriptionsFeed = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) throw new AppError("Unauthorized", 401);
+  if (!mongoose.Types.ObjectId.isValid(userId)) throw new AppError("Invalid userId", 400);
+
+  const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "12"), 10);
+
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 12;
+  const limit = Math.min(limitUncapped, 50);
+
+  const sortKey = String(req.query.sort ?? "latest").toLowerCase();
+  const sort =
+    sortKey === "trending"
+      ? { views: -1, createdAt: -1 }
+      : sortKey === "mostliked"
+        ? { Like: -1, createdAt: -1 }
+        : { createdAt: -1 };
+
+  const contentType = String(req.query.contentType ?? "").trim().toLowerCase();
+  const category = String(req.query.category ?? "").trim();
+  const q = String(req.query.q ?? "").trim();
+
+  const subs = await Subscription.find({ subscriber: userId }).select("channel").lean();
+  const channelIds = subs.map((s) => String(s.channel)).filter(Boolean);
+  if (channelIds.length === 0) {
+    return sendSuccess(
+      res,
+      {
+        items: [],
+        totalPages: 0,
+        currentPage: page,
+      },
+      200
+    );
+  }
+
+  const query = { uploader: { $in: channelIds } };
+
+  if (contentType === "short" || contentType === "video") {
+    query.contentType = contentType;
+  }
+
+  if (category && category.toLowerCase() !== "all") {
+    query.category = category;
+  }
+
+  if (q) {
+    const safe = escapeRegex(q);
+    const rx = new RegExp(safe, "i");
+    query.$or = [{ videotitle: rx }, { videochanel: rx }];
+  }
+
+  const total = await Video.countDocuments(query);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+  const currentPage = totalPages > 0 ? Math.min(page, totalPages) : page;
+  const skip = (currentPage - 1) * limit;
+
+  const items = await Video.find(query).sort(sort).skip(skip).limit(limit);
+
+  return sendSuccess(
+    res,
+    {
+      items,
+      totalPages,
+      currentPage,
     },
     200
   );

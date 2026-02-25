@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import Channeldialogue from "@/components/channeldialogue";
 import { useUser } from "@/context/AuthContext";
 import { notify } from "@/services/toast";
+import Link from "next/link";
 
 function readLocalStorage(key: string) {
   if (typeof window === "undefined") return null;
@@ -26,6 +28,8 @@ function writeLocalStorage(key: string, value: string) {
 export default function SettingsPage() {
   const { user } = useUser();
   const { theme, setTheme } = useTheme();
+
+  const [editChannelOpen, setEditChannelOpen] = useState(false);
 
   const [language, setLanguage] = useState("en");
   const [location, setLocation] = useState("IN");
@@ -67,6 +71,53 @@ export default function SettingsPage() {
               <span>{user?.role || "—"}</span>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-lg border bg-card p-4">
+          <h2 className="text-lg font-medium">Channel</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your channel details.
+          </p>
+
+          <div className="mt-3 space-y-1 text-sm">
+            <div>
+              <span className="text-muted-foreground">Channel name: </span>
+              <span>{user?.channelname || "—"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Description: </span>
+              <span>{user?.description || "—"}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="default"
+              onClick={() => {
+                if (!user?._id) return;
+                setEditChannelOpen(true);
+              }}
+              disabled={!user?._id}
+            >
+              Edit channel
+            </Button>
+
+            {user?._id ? (
+              <Button asChild variant="outline">
+                <Link href={`/channel/${user._id}`}>View channel</Link>
+              </Button>
+            ) : null}
+          </div>
+
+          <Channeldialogue
+            isopen={editChannelOpen}
+            onclose={() => setEditChannelOpen(false)}
+            channeldata={user}
+            mode={user?.channelname ? "edit" : "create"}
+            onSaved={() => {
+              setEditChannelOpen(false);
+            }}
+          />
         </section>
 
         <section className="rounded-lg border bg-card p-4">

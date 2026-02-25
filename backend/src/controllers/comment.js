@@ -42,6 +42,7 @@ export const getallcomment = async (req, res) => {
     res,
     {
       items: commentvideo,
+      total,
       totalPages,
       currentPage,
     },

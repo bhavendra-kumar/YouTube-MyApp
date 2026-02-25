@@ -15,6 +15,7 @@ import {
   Download,
   Facebook,
   Link2,
+  ListPlus,
   Mail,
   MoreHorizontal,
   Share,
@@ -39,6 +40,10 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const { user } = useUser();
   const [isWatchLater, setIsWatchLater] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [playlists, setPlaylists] = useState<Array<any>>([]);
+  const [playlistBusyId, setPlaylistBusyId] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
   const [shareOpen, setShareOpen] = useState(false);
@@ -60,7 +65,76 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
     setIsLiked(false);
     setIsDisliked(false);
     setIsWatchLater(false);
+    setSaveOpen(false);
   }, [video]);
+
+  const isVideoInPlaylist = (p: any) => {
+    const ids = Array.isArray(p?.videos) ? p.videos : [];
+    return ids.some((x: any) => String(x) === String(video?._id));
+  };
+
+  const loadPlaylists = async () => {
+    if (!user?._id) {
+      notify.info("Sign in to save to playlists");
+      return;
+    }
+
+    try {
+      setPlaylistsLoading(true);
+      const res = await axiosClient.get("/playlist/mine");
+      setPlaylists(Array.isArray(res.data?.items) ? res.data.items : []);
+    } catch (e) {
+      console.error(e);
+      notify.error("Could not load playlists");
+      setPlaylists([]);
+    } finally {
+      setPlaylistsLoading(false);
+    }
+  };
+
+  const togglePlaylist = async (playlistId: string) => {
+    if (!user?._id) {
+      notify.info("Sign in to save to playlists");
+      return;
+    }
+    if (!video?._id) return;
+
+    const current = playlists.find((p) => String(p?._id) === String(playlistId));
+    if (!current) return;
+
+    const wasIn = isVideoInPlaylist(current);
+    const prev = playlists;
+
+    // Optimistic update
+    setPlaylists((items) =>
+      items.map((p) => {
+        if (String(p?._id) !== String(playlistId)) return p;
+        const ids = Array.isArray(p?.videos) ? p.videos.map(String) : [];
+        const vid = String(video._id);
+        const nextIds = wasIn
+          ? ids.filter((x: string) => x !== vid)
+          : Array.from(new Set([...ids, vid]));
+        return { ...p, videos: nextIds };
+      })
+    );
+
+    try {
+      setPlaylistBusyId(String(playlistId));
+      if (wasIn) {
+        await axiosClient.delete(`/playlist/${playlistId}/videos/${video._id}`);
+        notify.success("Removed from playlist");
+      } else {
+        await axiosClient.post(`/playlist/${playlistId}/videos`, { videoId: video._id });
+        notify.success("Saved to playlist");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setPlaylists(prev);
+      notify.error(e?.response?.data?.message || "Could not update playlist");
+    } finally {
+      setPlaylistBusyId(null);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -527,8 +601,84 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
             onClick={handleWatchLater}
           >
             <Clock className="w-5 h-5 mr-2" />
-            {isWatchLater ? "Saved" : "Save"}
+            {isWatchLater ? "Saved" : "Watch later"}
           </Button>
+
+          <Dialog
+            open={saveOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                if (!user?._id) {
+                  notify.info("Sign in to save to playlists");
+                  return;
+                }
+                setSaveOpen(true);
+                void loadPlaylists();
+                return;
+              }
+              setSaveOpen(false);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="rounded-full bg-muted">
+                <ListPlus className="w-5 h-5 mr-2" />
+                Save
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Save to playlist</DialogTitle>
+              </DialogHeader>
+
+              {playlistsLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : playlists.length === 0 ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">No playlists yet.</div>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/playlists">Create a playlist</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {playlists.map((p) => {
+                    const checked = isVideoInPlaylist(p);
+                    const busy = playlistBusyId && String(playlistBusyId) === String(p._id);
+                    return (
+                      <button
+                        key={p._id}
+                        type="button"
+                        onClick={() => void togglePlaylist(String(p._id))}
+                        disabled={Boolean(busy)}
+                        className="flex w-full items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-left hover:bg-muted/40 disabled:opacity-60"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium line-clamp-1">{p.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(Array.isArray(p.videos) ? p.videos.length : 0).toLocaleString()} videos
+                            {p.visibility ? ` • ${p.visibility}` : ""}
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          readOnly
+                          className="h-4 w-4 accent-red-600"
+                        />
+                      </button>
+                    );
+                  })}
+
+                  <div className="pt-2">
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/playlists">Manage playlists</Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={shareOpen} onOpenChange={setShareOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="rounded-full bg-muted">

@@ -27,9 +27,9 @@ const filefilter = (req, file, cb) => {
   const type = String(file?.mimetype || "").toLowerCase();
   const originalName = String(file?.originalname || "").toLowerCase();
 
-  if (field === "thumbnail") {
+  if (field === "thumbnail" || field === "avatar" || field === "banner") {
     const ok = allowedImageTypes.has(type);
-    if (!ok) req.fileValidationError = "Invalid thumbnail type. Use jpg/png/webp/gif.";
+    if (!ok) req.fileValidationError = "Invalid image type. Use jpg/png/webp/gif.";
     return cb(null, ok);
   }
 

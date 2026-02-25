@@ -4,6 +4,7 @@ import authMiddleware from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { requireRole } from "../middleware/requireRole.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import upload from "../utils/upload.js";
 import {
 	loginSchema,
 	logoutSchema,
@@ -17,6 +18,7 @@ import {
 	me,
 	refresh,
 	register,
+	updateChannelMedia,
 	updateprofile,
 } from "../controllers/auth.js";
 
@@ -40,5 +42,15 @@ routes.get(
 
 routes.get("/:id", asyncHandler(getuser));
 routes.patch("/update/:id", authMiddleware, asyncHandler(updateprofile));
+
+routes.post(
+	"/media",
+	authMiddleware,
+	upload.fields([
+		{ name: "avatar", maxCount: 1 },
+		{ name: "banner", maxCount: 1 },
+	]),
+	asyncHandler(updateChannelMedia)
+);
 
 export default routes;

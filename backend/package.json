@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed:videos": "node scripts/seed-videos.js"
+    "seed": "node scripts/seed-videos.js",
+    "seed:force": "node scripts/seed-videos.js --force"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -25,6 +26,7 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemon": "^3.1.14",
+    "redis": "^4.7.1",
     "socket.io": "^4.8.3",
     "zod": "^4.3.6"
   }

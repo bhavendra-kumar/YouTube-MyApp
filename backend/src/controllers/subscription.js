@@ -4,6 +4,9 @@ import Video from "../models/video.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
+const VIDEO_LIST_SELECT =
+  "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
+
 function escapeRegex(input) {
   return String(input).replace(/[.*+?^${}()|[\[\]\\]/g, "\\$&");
 }
@@ -95,10 +98,10 @@ export const getSubscriptionsFeed = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) throw new AppError("Invalid userId", 400);
 
   const rawPage = Number.parseInt(String(req.query.page ?? "1"), 10);
-  const rawLimit = Number.parseInt(String(req.query.limit ?? "12"), 10);
+  const rawLimit = Number.parseInt(String(req.query.limit ?? "10"), 10);
 
   const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 12;
+  const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
   const limit = Math.min(limitUncapped, 50);
 
   const sortKey = String(req.query.sort ?? "latest").toLowerCase();
@@ -148,7 +151,12 @@ export const getSubscriptionsFeed = async (req, res) => {
   const currentPage = totalPages > 0 ? Math.min(page, totalPages) : page;
   const skip = (currentPage - 1) * limit;
 
-  const items = await Video.find(query).sort(sort).skip(skip).limit(limit);
+  const items = await Video.find(query)
+    .select(VIDEO_LIST_SELECT)
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return sendSuccess(
     res,

@@ -5,8 +5,6 @@ import type { Category } from "@/components/CategoryTab";
 import axiosClient from "@/services/http/axios";
 import VideoCard from "@/components/VideoCard"
 import { Button } from "@/components/ui/button";
-import { useSidebar } from "@/context/SidebarContext";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,24 +41,9 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
   const router = useRouter();
   const search = getSearchQueryParam(router.query.search).trim().toLowerCase();
 
-  const { isCollapsed } = useSidebar();
-
-  const [screenWidth, setScreenWidth] = useState<number | null>(null);
-
-  useEffect(() => {
-    const update = () => {
-      if (typeof window === "undefined") return;
-      const next = window.screen?.width || window.innerWidth;
-      setScreenWidth(Number.isFinite(next) ? next : window.innerWidth);
-    };
-
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
   const [videos, setVideos] = useState<ApiVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [sort, setSort] = useState<VideoSort>("latest");
   const [page, setPage] = useState(1);
@@ -77,49 +60,142 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
   const filterKey = `${String(activeCategory)}|${search}|${sort}`;
   const lastFetchedFilterKey = useRef(filterKey);
 
+  const inFlightRef = useRef(false);
+  const lastRequestedRef = useRef<{ key: string; page: number }>({
+    key: "",
+    page: 0,
+  });
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const hasMore = totalPages > 0 ? page < totalPages : false;
+
+  function mergeUniqueById(prev: ApiVideo[], next: ApiVideo[]) {
+    if (next.length === 0) return prev;
+    const seen = new Set(prev.map((v) => String(v._id)));
+    const merged = prev.slice();
+    for (const item of next) {
+      const id = String(item?._id || "");
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push(item);
+    }
+    return merged;
+  }
+
   useEffect(() => {
     setPage(1);
+    setVideos([]);
+    setTotalPages(0);
   }, [activeCategory, search, sort]);
 
   useEffect(() => {
     // If filters changed, wait for page reset to 1 before fetching.
     if (lastFetchedFilterKey.current !== filterKey && page !== 1) return;
 
+    // Prevent duplicate fetches for the same key+page.
+    if (
+      inFlightRef.current &&
+      lastRequestedRef.current.key === filterKey &&
+      lastRequestedRef.current.page === page
+    ) {
+      return;
+    }
+
+    lastRequestedRef.current = { key: filterKey, page };
+    inFlightRef.current = true;
+
     const run = async () => {
-      setLoading(true);
+      const isFirstPage = page === 1;
+      if (isFirstPage) setLoading(true);
+      else setLoadingMore(true);
       try {
-        const res = await axiosClient.get("/video/getall", {
-          params: {
-            page,
-            limit,
-            sort,
-            category: activeCategory,
-            q: search || undefined,
-          },
-        });
+        const useHomeFeed =
+          activeCategory === "All" &&
+          !search &&
+          sort === "trending";
 
-        const items = res.data?.items;
-        setVideos(Array.isArray(items) ? items : []);
+        if (useHomeFeed) {
+          const res = await axiosClient.get("/video/home", {
+            params: {
+              page,
+              limit,
+            },
+          });
 
-        const nextTotalPages = Number(res.data?.totalPages ?? 0);
-        const nextCurrentPage = Number(res.data?.currentPage ?? page);
-        setTotalPages(Number.isFinite(nextTotalPages) ? nextTotalPages : 0);
-        lastFetchedFilterKey.current = filterKey;
+          const items = res.data?.data;
+          const list = Array.isArray(items) ? items : [];
+          setVideos((prev) => (page === 1 ? list : mergeUniqueById(prev, list)));
 
-        if (Number.isFinite(nextCurrentPage) && nextCurrentPage > 0 && nextCurrentPage !== page) {
-          setPage(nextCurrentPage);
+          const total = Number(res.data?.total ?? 0);
+          const nextTotalPages = total === 0 ? 0 : Math.ceil(total / limit);
+          setTotalPages(Number.isFinite(nextTotalPages) ? nextTotalPages : 0);
+          lastFetchedFilterKey.current = filterKey;
+
+          if (nextTotalPages > 0 && page > nextTotalPages) {
+            setPage(nextTotalPages);
+          }
+        } else {
+          const res = await axiosClient.get("/video/getall", {
+            params: {
+              page,
+              limit,
+              sort,
+              category: activeCategory,
+              q: search || undefined,
+            },
+          });
+
+          const items = res.data?.items;
+          const list = Array.isArray(items) ? items : [];
+          setVideos((prev) => (page === 1 ? list : mergeUniqueById(prev, list)));
+
+          const nextTotalPages = Number(res.data?.totalPages ?? 0);
+          const nextCurrentPage = Number(res.data?.currentPage ?? page);
+          setTotalPages(Number.isFinite(nextTotalPages) ? nextTotalPages : 0);
+          lastFetchedFilterKey.current = filterKey;
+
+          if (Number.isFinite(nextCurrentPage) && nextCurrentPage > 0 && nextCurrentPage !== page) {
+            setPage(nextCurrentPage);
+          }
         }
       } catch (e) {
         console.error("Failed to load videos", e);
-        setVideos([]);
-        setTotalPages(0);
+        if (page === 1) {
+          setVideos([]);
+          setTotalPages(0);
+        }
       } finally {
         setLoading(false);
+        setLoadingMore(false);
+        inFlightRef.current = false;
       }
     };
 
     run();
   }, [activeCategory, filterKey, limit, page, search, sort]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    if (typeof window === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+
+        if (!hasMore) return;
+        if (loading || loadingMore) return;
+
+        setPage((p) => p + 1);
+      },
+      { root: null, rootMargin: "400px", threshold: 0 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore]);
 
   useEffect(() => {
     const onUploaded = (event: Event) => {
@@ -160,21 +236,6 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
     });
   }, [search, videos]);
 
-  const lgColsClass = useMemo(() => {
-    // Use physical screen width (not viewport CSS width) to avoid browser zoom
-    // shifting Tailwind breakpoints and changing column counts unexpectedly.
-    const w = screenWidth ?? 0;
-
-    if (isCollapsed) {
-      if (w >= 2560) return "lg:grid-cols-3";
-      return "lg:grid-cols-4";
-    }
-
-    if (w >= 2560) return "lg:grid-cols-3";
-    if (w >= 1920) return "lg:grid-cols-4";
-    return "lg:grid-cols-3";
-  }, [isCollapsed, screenWidth]);
-
   if (loading) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">Loading...</p>
@@ -207,39 +268,18 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
       </div>
 
       <div
-        className={cn(
-          "grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2",
-          lgColsClass
-        )}
+        className="grid grid-cols-1 gap-x-4 gap-y-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         {filtered.map((video) => (
           <VideoCard key={video._id} video={video} />
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 py-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={loading || page <= 1}
-          >
-            Prev
-          </Button>
-          <div className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={loading || page >= totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+      <div ref={sentinelRef} className="h-1" />
+
+      {loadingMore ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Loading more...</p>
+      ) : null}
     </div>
   );
 }

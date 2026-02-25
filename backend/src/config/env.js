@@ -6,6 +6,9 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number.parseInt(process.env.PORT || "5000", 10),
   dbUrl: process.env.DB_URL,
+  redis: {
+    url: process.env.REDIS_URL,
+  },
   jwtSecret: process.env.JWT_SECRET,
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET,
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,

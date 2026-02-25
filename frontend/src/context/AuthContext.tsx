@@ -11,6 +11,7 @@ export type AppUser = {
   email?: string;
   name?: string;
   image?: string;
+  bannerUrl?: string;
   role?: string;
   token?: string;
   channelname?: string;

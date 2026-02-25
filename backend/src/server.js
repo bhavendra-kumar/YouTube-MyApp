@@ -21,6 +21,8 @@ import watchlaterroutes from "./routes/watchlater.js";
 import historyrroutes from "./routes/history.js";
 import commentroutes from "./routes/comment.js";
 import subscriptionroutes from "./routes/subscription.js";
+import playlistroutes from "./routes/playlist.js";
+import communityroutes from "./routes/community.js";
 
 import Like from "./models/like.js";
 import Dislike from "./models/dislike.js";
@@ -51,6 +53,8 @@ app.use("/watch", watchlaterroutes);
 app.use("/history", historyrroutes);
 app.use("/comment", commentroutes);
 app.use("/subscribe", subscriptionroutes);
+app.use("/playlist", playlistroutes);
+app.use("/community", communityroutes);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns"
-import { buildMediaUrl } from "@/lib/media"
 
 interface RelatedVideosProps {
   videos: Array<{
@@ -10,6 +9,7 @@ interface RelatedVideosProps {
     views: number;
     createdAt: string;
     filepath?: string;
+    thumbnailUrl?: string;
   }>;
 }
 export default function RelatedVideos({ videos }: RelatedVideosProps) {
@@ -22,13 +22,17 @@ export default function RelatedVideos({ videos }: RelatedVideosProps) {
           className="group -m-1 flex gap-3 rounded-lg p-1 transition-colors hover:bg-accent/40"
         >
           <div className="relative aspect-video w-44 flex-shrink-0 overflow-hidden rounded-md bg-muted">
-            <video
-              src={buildMediaUrl(video?.filepath)}
-              preload="metadata"
-              muted
-              playsInline
-              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-            />
+            {video.thumbnailUrl ? (
+              <img
+                src={video.thumbnailUrl}
+                alt={`${video.videotitle} thumbnail`}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+              />
+            ) : (
+              <div className="h-full w-full" aria-hidden="true" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="line-clamp-2 text-sm font-medium">

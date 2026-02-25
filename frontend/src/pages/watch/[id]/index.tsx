@@ -176,15 +176,15 @@ const index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4">
+    <main className="flex-1">
+      <div className="mx-auto w-full max-w-7xl p-4">
         <div
           className={cn(
-            "grid grid-cols-1 gap-6",
+            "grid grid-cols-1 gap-6 min-w-0",
             theaterMode ? "lg:grid-cols-1" : "lg:grid-cols-3"
           )}
         >
-          <div className={cn("space-y-4", theaterMode ? "" : "lg:col-span-2")}>
+          <div className={cn("space-y-4 min-w-0", theaterMode ? "" : "lg:col-span-2")}>
             <Videopplayer
               video={currentVideo}
               theaterMode={theaterMode}
@@ -209,14 +209,14 @@ const index = () => {
           </div>
 
           {!theaterMode ? (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <h2 className="font-semibold">Related Videos</h2>
               <RelatedVideos videos={relatedVideos} />
             </div>
           ) : null}
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

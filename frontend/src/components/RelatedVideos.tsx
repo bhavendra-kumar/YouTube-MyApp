@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns"
+import { buildMediaUrl } from "@/lib/media";
 
 interface RelatedVideosProps {
   videos: Array<{
@@ -24,7 +25,7 @@ export default function RelatedVideos({ videos }: RelatedVideosProps) {
           <div className="relative aspect-video w-44 flex-shrink-0 overflow-hidden rounded-md bg-muted">
             {video.thumbnailUrl ? (
               <img
-                src={video.thumbnailUrl}
+                src={buildMediaUrl(video.thumbnailUrl)}
                 alt={`${video.videotitle} thumbnail`}
                 loading="lazy"
                 decoding="async"

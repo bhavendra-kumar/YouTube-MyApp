@@ -41,7 +41,7 @@ async function saveLocalBuffer({ buffer, originalName }) {
   await fs.writeFile(fullPath, buffer);
 
   // Keep the same shape as Cloudinary result, but with a relative path.
-  return { secure_url: `uploads/${filename}`, public_id: "" };
+  return { secure_url: `/uploads/${filename}`, public_id: "" };
 }
 
 function uploadBuffer({ buffer, originalName, resourceType }) {

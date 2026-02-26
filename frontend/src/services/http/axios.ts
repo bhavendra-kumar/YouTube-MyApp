@@ -11,18 +11,14 @@ import {
   setAccessToken,
 } from "@/services/auth/tokenStorage";
 import { notify } from "@/services/toast";
+import { getPublicBackendUrl } from "@/lib/backendUrl";
 
 type AxiosConfigWithFlags = AxiosRequestConfig & {
   _retry?: boolean;
   skipAuthRefresh?: boolean;
 };
 
-const DEFAULT_BACKEND_URL =
-  process.env.NODE_ENV === "production"
-    ? "https://youtube-myapp.onrender.com"
-    : "http://localhost:5000";
-
-const baseURL = (process.env.NEXT_PUBLIC_API_URL || "").trim() || DEFAULT_BACKEND_URL;
+const baseURL = getPublicBackendUrl() || undefined;
 
 let refreshInFlight: Promise<string | null> | null = null;
 

@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import axiosClient from "@/services/http/axios";
 import ErrorState from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildMediaUrl } from "@/lib/media";
 
 type SearchResultProps = {
   query?: string;
@@ -127,7 +128,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
                 <div className="relative aspect-video w-full bg-muted rounded-lg overflow-hidden">
                   {video.thumbnailUrl ? (
                     <img
-                      src={video.thumbnailUrl}
+                      src={buildMediaUrl(video.thumbnailUrl)}
                       alt={`${title} thumbnail`}
                       loading="lazy"
                       decoding="async"

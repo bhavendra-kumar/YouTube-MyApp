@@ -5,6 +5,7 @@ import axiosClient from "@/services/http/axios";
 import { AUTH_EVENTS } from "@/services/auth/authEvents";
 import { clearAuthStorage, setAccessToken } from "@/services/auth/tokenStorage";
 import { auth, provider } from "@/lib/firebase";
+import { notify } from "@/services/toast";
 
 export type AppUser = {
   _id: string;
@@ -72,7 +73,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      await signOut(auth);
+      if (auth) {
+        await signOut(auth);
+      }
     } catch {
       // ignore
     }
@@ -82,6 +85,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     // We intentionally do NOT call the backend here.
     // `onAuthStateChanged` will fire after a successful sign-in and will
     // create/refresh the backend session exactly once.
+    if (!auth) {
+      notify.error(
+        "Firebase auth is not configured. Set NEXT_PUBLIC_FIREBASE_* env vars and redeploy."
+      );
+      return;
+    }
     await signInWithPopup(auth, provider);
   };
 
@@ -107,6 +116,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(AUTH_EVENTS.logout, onLogout as EventListener);
 
     // 3) Firebase auth listener for social sign-in (keeps session fresh)
+    if (!auth) {
+      return () => {
+        window.removeEventListener(AUTH_EVENTS.logout, onLogout as EventListener);
+      };
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseuser) => {
       try {
         if (!firebaseuser) return;

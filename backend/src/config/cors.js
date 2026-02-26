@@ -10,11 +10,33 @@ function splitCsv(value) {
 
 const normalizeOrigin = (value) => {
   if (!value) return "";
+  let raw = String(value).trim();
+  if (!raw) return "";
+
+  // Some dashboards store env values with surrounding quotes.
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    raw = raw.slice(1, -1).trim();
+  }
+
   try {
-    const url = new URL(String(value));
+    const url = new URL(raw);
     return `${url.protocol}//${url.host}`;
   } catch {
-    return String(value).replace(/\/+$/, "");
+    // If someone configures FRONTEND_URL as a bare hostname (common in dashboards),
+    // treat it as an https origin.
+    if (!raw.includes("://") && !raw.startsWith("//")) {
+      try {
+        const url = new URL(`https://${raw.replace(/^\/+/, "")}`);
+        return `${url.protocol}//${url.host}`;
+      } catch {
+        // fall through
+      }
+    }
+
+    return raw.replace(/\/+$/, "");
   }
 };
 

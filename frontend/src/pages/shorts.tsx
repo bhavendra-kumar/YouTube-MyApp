@@ -608,7 +608,7 @@ export default function ShortsPage() {
                     else videoRefs.current.delete(id);
                   }}
                   src={src}
-                  poster={item.thumbnailUrl}
+                  poster={buildMediaUrl(item.thumbnailUrl)}
                   muted
                   playsInline
                   loop

@@ -154,7 +154,7 @@ export default function HistoryContent() {
               <div className="relative aspect-video w-full bg-gray-100 rounded overflow-hidden">
                 {item.videoid?.thumbnailUrl ? (
                   <img
-                    src={item.videoid.thumbnailUrl}
+                    src={buildMediaUrl(item.videoid.thumbnailUrl)}
                     alt={`${item.videoid.videotitle} thumbnail`}
                     loading="lazy"
                     decoding="async"

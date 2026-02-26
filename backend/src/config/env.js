@@ -15,6 +15,9 @@ export const env = {
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "30d",
   frontendUrl: process.env.FRONTEND_URL,
+  // Optional comma-separated list of extra allowed origins.
+  // Example: "https://youtube-myapp.vercel.app,https://youtube-myapp-git-main-team.vercel.app"
+  frontendUrls: process.env.FRONTEND_URLS,
   cloudinary: {
     cloudName: process.env.CLOUD_NAME,
     apiKey: process.env.CLOUD_API_KEY,

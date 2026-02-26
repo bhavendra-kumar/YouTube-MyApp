@@ -1,6 +1,12 @@
 import { env } from "./env.js";
 
-const DEFAULT_FRONTEND_ORIGIN = "https://youtube-myapp.vercel.app";
+function splitCsv(value) {
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 const normalizeOrigin = (value) => {
   if (!value) return "";
@@ -35,12 +41,49 @@ const allowLocalhost = (origin) => {
   }
 };
 
-const frontendOrigin = normalizeOrigin(env.frontendUrl) || normalizeOrigin(DEFAULT_FRONTEND_ORIGIN);
+function getVercelProjectSlugFromFrontendUrl() {
+  const normalized = normalizeOrigin(env.frontendUrl);
+  if (!normalized) return "";
+  try {
+    const url = new URL(normalized);
+    const host = String(url.hostname || "").toLowerCase();
+    if (!host.endsWith(".vercel.app")) return "";
+    return host.slice(0, -".vercel.app".length);
+  } catch {
+    return "";
+  }
+}
+
+function allowVercelPreview(origin) {
+  const slug = getVercelProjectSlugFromFrontendUrl();
+  if (!slug) return false;
+
+  try {
+    const url = new URL(String(origin));
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+
+    const host = String(url.hostname || "").toLowerCase();
+    if (!host.endsWith(".vercel.app")) return false;
+
+    // Allow:
+    // - <slug>.vercel.app (production)
+    // - <slug>-*.vercel.app (preview deployments)
+    return host === `${slug}.vercel.app` || host.startsWith(`${slug}-`);
+  } catch {
+    return false;
+  }
+}
+
+const configuredOrigins = new Set(
+  [env.frontendUrl, ...splitCsv(env.frontendUrls)].map(normalizeOrigin).filter(Boolean)
+);
 
 export function corsOriginChecker(origin, cb) {
   // Allow non-browser tools (no origin)
   if (!origin) return cb(null, true);
-  if (normalizeOrigin(origin) === frontendOrigin) return cb(null, true);
+  const normalized = normalizeOrigin(origin);
+  if (configuredOrigins.has(normalized)) return cb(null, true);
+  if (allowVercelPreview(origin)) return cb(null, true);
   if (allowLocalhost(origin)) return cb(null, true);
   return cb(new Error("Not allowed by CORS"));
 }

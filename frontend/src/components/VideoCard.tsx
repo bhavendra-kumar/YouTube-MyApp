@@ -3,6 +3,7 @@ import Link from "next/link";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Avatar, AvatarFallback } from "./ui/avatar";
+import { buildMediaUrl } from "@/lib/media";
 
 dayjs.extend(relativeTime);
 
@@ -27,7 +28,7 @@ function VideoCardInner({ video }: Props) {
 
   const href = `/watch/${encodeURIComponent(String(video?._id ?? ""))}`;
   const title = video?.videotitle ?? "";
-  const thumbnailSrc = String(video?.thumbnailUrl || "");
+  const thumbnailSrc = buildMediaUrl(video?.thumbnailUrl);
 
   const viewsNumber =
     typeof video?.views === "number"

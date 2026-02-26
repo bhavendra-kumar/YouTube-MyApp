@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { buildMediaUrl } from "@/lib/media";
 
 export type ChannelVideoItem = {
   _id: string;
@@ -159,7 +160,7 @@ export default function ChannelVideos({
                   <div className="relative aspect-video bg-muted">
                     {video.thumbnailUrl ? (
                       <img
-                        src={video.thumbnailUrl}
+                        src={buildMediaUrl(video.thumbnailUrl)}
                         alt={`${label} thumbnail`}
                         loading="lazy"
                         decoding="async"

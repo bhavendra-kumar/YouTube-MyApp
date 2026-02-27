@@ -2,6 +2,7 @@ import Video from "../models/video.js";
 import History from "../models/history.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { withMediaUrls } from "../utils/mediaUrl.js";
 
 const VIDEO_LIST_SELECT =
   "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
@@ -64,7 +65,14 @@ export const getallhistoryVideo = async (req, res) => {
     })
     .lean();
 
-  return sendSuccess(res, historyvideo, 200);
+  const items = Array.isArray(historyvideo)
+    ? historyvideo.map((row) => ({
+        ...row,
+        videoid: row?.videoid ? withMediaUrls(row.videoid, req) : row?.videoid,
+      }))
+    : [];
+
+  return sendSuccess(res, items, 200);
 };
 
 export const deleteHistoryItem = async (req, res) => {

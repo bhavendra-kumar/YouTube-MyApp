@@ -4,6 +4,7 @@ import Playlist from "../models/playlist.js";
 import Video from "../models/video.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { withMediaUrls } from "../utils/mediaUrl.js";
 
 const PLAYLIST_LIST_SELECT = "owner title description visibility videos createdAt";
 const PLAYLIST_DETAIL_SELECT = "owner title description visibility videos createdAt updatedAt";
@@ -94,6 +95,9 @@ export const getPlaylistById = async (req, res) => {
     requireOwnerOrAdmin(req, playlist.owner);
   }
 
+  if (Array.isArray(playlist.videos)) {
+    playlist.videos = playlist.videos.map((v) => withMediaUrls(v, req));
+  }
   return sendSuccess(res, playlist, 200);
 };
 
@@ -123,6 +127,9 @@ export const addVideoToPlaylist = async (req, res) => {
     .select(PLAYLIST_DETAIL_SELECT)
     .lean();
 
+  if (updated && Array.isArray(updated.videos)) {
+    updated.videos = updated.videos.map((v) => withMediaUrls(v, req));
+  }
   return sendSuccess(res, updated, 200);
 };
 
@@ -148,6 +155,9 @@ export const removeVideoFromPlaylist = async (req, res) => {
     .select(PLAYLIST_DETAIL_SELECT)
     .lean();
 
+  if (updated && Array.isArray(updated.videos)) {
+    updated.videos = updated.videos.map((v) => withMediaUrls(v, req));
+  }
   return sendSuccess(res, updated, 200);
 };
 

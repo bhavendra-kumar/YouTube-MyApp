@@ -3,6 +3,7 @@ import Subscription from "../models/subscription.js";
 import Video from "../models/video.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { withMediaUrls } from "../utils/mediaUrl.js";
 
 const VIDEO_LIST_SELECT =
   "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
@@ -161,7 +162,7 @@ export const getSubscriptionsFeed = async (req, res) => {
   return sendSuccess(
     res,
     {
-      items,
+      items: Array.isArray(items) ? items.map((v) => withMediaUrls(v, req)) : [],
       totalPages,
       currentPage,
     },

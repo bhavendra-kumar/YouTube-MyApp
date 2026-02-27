@@ -29,6 +29,9 @@ import Dislike from "./models/dislike.js";
 
 const app = express();
 
+// Needed behind proxies (Render, etc.) so req.protocol reflects X-Forwarded-Proto (https)
+app.set("trust proxy", 1);
+
 app.use(cors(corsOptions));
 app.use(apiRateLimiter);
 app.use(cookieParser());

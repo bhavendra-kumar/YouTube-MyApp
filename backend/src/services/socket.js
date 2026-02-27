@@ -1,6 +1,6 @@
 import http from "http";
 import { Server } from "socket.io";
-import { socketCorsOptions } from "../config/cors.js";
+import { corsOptions } from "../config/cors.js";
 
 export function createHttpServer(app) {
   return http.createServer(app);
@@ -8,7 +8,7 @@ export function createHttpServer(app) {
 
 export function initSocket(server) {
   const io = new Server(server, {
-    cors: socketCorsOptions,
+    cors: corsOptions,
   });
 
   io.on("connection", (socket) => {

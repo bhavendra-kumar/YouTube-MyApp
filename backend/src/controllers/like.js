@@ -3,6 +3,7 @@ import Like from "../models/like.js";
 import Dislike from "../models/dislike.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { withMediaUrls } from "../utils/mediaUrl.js";
 
 const VIDEO_LIST_SELECT =
   "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
@@ -172,5 +173,12 @@ export const getallLikedVideo = async (req, res) => {
     })
     .lean();
 
-  return sendSuccess(res, likevideo, 200);
+  const items = Array.isArray(likevideo)
+    ? likevideo.map((row) => ({
+        ...row,
+        videoid: row?.videoid ? withMediaUrls(row.videoid, req) : row?.videoid,
+      }))
+    : [];
+
+  return sendSuccess(res, items, 200);
 };

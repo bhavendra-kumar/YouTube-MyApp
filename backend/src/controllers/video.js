@@ -10,6 +10,7 @@ import { sendSuccess } from "../utils/apiResponse.js";
 import { calculateTrendingScore } from "../utils/trendingScore.js";
 import { uploadCaptionFile, uploadThumbnailFile, uploadVideoFile } from "../services/uploadService.js";
 import { cacheGetJson, cacheSetJson } from "../services/cache.js";
+import { withMediaUrls } from "../utils/mediaUrl.js";
 
 const VIDEO_LIST_SELECT =
   "videotitle filepath thumbnailUrl videochanel views createdAt duration category contentType isShort uploader Like Dislike commentsCount trendingScore";
@@ -168,7 +169,7 @@ export const uploadVideo = async (req, res) => {
   });
 
   await doc.save();
-  return sendSuccess(res, doc, 201);
+  return sendSuccess(res, withMediaUrls(doc.toObject(), req), 201);
 };
 
 // Backward-compatible export (older code imports `uploadvideo`)
@@ -227,7 +228,7 @@ export const getallvideo = async (req, res) => {
   return sendSuccess(
     res,
     {
-      items: files,
+      items: Array.isArray(files) ? files.map((v) => withMediaUrls(v, req)) : [],
       totalPages,
       currentPage,
     },
@@ -244,7 +245,7 @@ export const getHomeFeed = async (req, res) => {
   const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
   const limit = Math.min(limitUncapped, 50);
 
-  const cacheKey = `video:homefeed:v1:page=${pageUncapped}:limit=${limit}`;
+  const cacheKey = `video:homefeed:v2:page=${pageUncapped}:limit=${limit}`;
   const cached = await cacheGetJson(cacheKey);
   if (cached && typeof cached === "object") {
     return res.status(200).json(cached);
@@ -335,10 +336,15 @@ export const getHomeFeed = async (req, res) => {
   ]);
 
   const data = Array.isArray(dataRaw)
-    ? dataRaw.map((v) => ({
-        ...v,
-        trendingScore: calculateTrendingScore(v, nowMs),
-      }))
+    ? dataRaw.map((v) =>
+        withMediaUrls(
+          {
+            ...v,
+            trendingScore: calculateTrendingScore(v, nowMs),
+          },
+          req
+        )
+      )
     : [];
 
   const payload = {
@@ -362,7 +368,7 @@ export const getShortsFeed = async (req, res) => {
   const limitUncapped = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
   const limit = Math.min(limitUncapped, 50);
 
-  const cacheKey = `video:shortsfeed:v1:page=${pageUncapped}:limit=${limit}`;
+  const cacheKey = `video:shortsfeed:v2:page=${pageUncapped}:limit=${limit}`;
   const cached = await cacheGetJson(cacheKey);
   if (cached && typeof cached === "object") {
     return res.status(200).json(cached);
@@ -445,10 +451,15 @@ export const getShortsFeed = async (req, res) => {
   ]);
 
   const data = Array.isArray(dataRaw)
-    ? dataRaw.map((v) => ({
-        ...v,
-        trendingScore: calculateTrendingScore(v, nowMs),
-      }))
+    ? dataRaw.map((v) =>
+        withMediaUrls(
+          {
+            ...v,
+            trendingScore: calculateTrendingScore(v, nowMs),
+          },
+          req
+        )
+      )
     : [];
 
   const payload = {
@@ -498,7 +509,7 @@ export const postWatchTime = async (req, res) => {
   video.trendingScore = calculateTrendingScore(video);
 
   await video.save();
-  return sendSuccess(res, video, 200);
+  return sendSuccess(res, withMediaUrls(video.toObject(), req), 200);
 };
 
 export const getvideobyid = async (req, res) => {
@@ -513,7 +524,7 @@ export const getvideobyid = async (req, res) => {
     throw new AppError("Video not found", 404);
   }
 
-  return sendSuccess(res, file, 200);
+  return sendSuccess(res, withMediaUrls(file, req), 200);
 };
 
 export const updateMyVideo = async (req, res) => {
@@ -559,7 +570,7 @@ export const updateMyVideo = async (req, res) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return sendSuccess(res, video.toObject(), 200);
+    return sendSuccess(res, withMediaUrls(video.toObject(), req), 200);
   }
 
   Object.assign(video, updates);
@@ -568,7 +579,7 @@ export const updateMyVideo = async (req, res) => {
   await video.save();
 
   const updated = await Video.findById(id).select(VIDEO_LIST_SELECT).lean();
-  return sendSuccess(res, updated, 200);
+  return sendSuccess(res, withMediaUrls(updated, req), 200);
 };
 
 export const deleteMyVideo = async (req, res) => {

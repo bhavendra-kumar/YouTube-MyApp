@@ -10,7 +10,7 @@ import { AppError } from "../utils/AppError.js";
 function ensureCloudinaryConfigured() {
   if (!env.cloudinary.cloudName || !env.cloudinary.apiKey || !env.cloudinary.apiSecret) {
     throw new AppError(
-      "Cloudinary is not configured. Set CLOUD_NAME, CLOUD_API_KEY, CLOUD_API_SECRET.",
+      "Cloudinary is not configured. Set CLOUD_NAME/CLOUD_API_KEY/CLOUD_API_SECRET (or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET).",
       500
     );
   }

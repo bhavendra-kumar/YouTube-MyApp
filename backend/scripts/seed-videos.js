@@ -42,29 +42,38 @@ const seedCategories = [
   {
     name: "Music",
     tags: ["music", "acoustic", "chill", "beats"],
-    titles: ["Late Night Acoustic Vibes", "Deep Focus Piano Mix"],
+    titles: ["Aaya Ser Lyrical Song - The Paradise",
+      "One Direction - Night Changes",
+      "The Nights - My Father told me",
+      "Shararat Song - Dhurandhar",
+      "The Weeknd - Blinding Lights",
+      "Raavana Mavandaa Song - Jana Nayagan",
+      "Beast Mode Song - Beast",
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/elephants.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/sea_turtle.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1771955017/Aaya_Sher_-_Lyrical_The_Paradise_Nani_Anirudh_Ravichander_Srikanth_Odela_480P_mjjvv1.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772171167/One_Direction_-_Night_Changes_480p_vmn7vn.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772171223/Avicii_-_The_Nights_Lyrics_my_father_told_me_480p_d9ubz6.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1771955093/Shararat_Dhurandhar_Ranveer_Aditya_Dhar_Shashwat_Jasmine_Madhubanti_Ayesha_Krystle_480p_i4fxqs.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772171461/The_Weeknd_-_Blinding_Lights_Official_Video_720p_ae3gek.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772171832/Jana_Nayagan_-_Raavana_Mavandaa_Lyrical_Thalapathy_Vijay_Pooja_Hegde_H_Vinoth_Anirudh_KVN_720P_b2lejq.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179575/Beast_Mode_-_Video_Song_Beast_Thalapathy_Vijay_Nelson_Anirudh_Sun_Music_1080p_ie2lie.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181240/ROCKSTAR_Kun_Faya_Kun_Song_8K_Full_Video_Ranbir_Kapoor_A.R._Rahman_Javed_Ali_Mohit_Chauhan_720P_xke6ix.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/music1/800/450",
-      "https://picsum.photos/seed/music2/800/450",
-    ],
+
   },
 
   {
     name: "Movies",
-    tags: ["movies", "cinema", "review", "hollywood"],
+    tags: ["movies", "cinema", "review", "trailer"],
     titles: ["Top 10 Unexpected Plot Twists", "Hidden Movie Gems You Missed"],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/cld-sample-video.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/dog.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772180866/VARANASI_to_the_WORLD_-_Mahesh_Babu_Official_Trailer_Filmed_For_IMAX_1080p_jk9tlx.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181506/Making_Of_Ram_Charan_s_ICONIC_Intro_Ft._S._S._Rajamouli_RRR_Behind_Beyond_Netflix_India_720P_pugjan.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/movie1/800/450",
-      "https://picsum.photos/seed/movie2/800/450",
-    ],
+
   },
 
   {
@@ -72,81 +81,85 @@ const seedCategories = [
     tags: ["gaming", "fps", "gameplay", "esports"],
     titles: ["Pro Gamer Settings Guide", "Insane Clutch Moments Compilation"],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/horse.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/snow.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181432/Dimitri_Vegas_Like_Mike_-_Rampage_Free_Fire_Rampage_Theme_Song_Official_Music_Video_720P_ynzwvk.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/game1/800/450",
-      "https://picsum.photos/seed/game2/800/450",
-    ],
+
   },
 
   {
     name: "Sports",
     tags: ["sports", "football", "training", "highlights"],
-    titles: ["Last-Minute Goal Thriller", "Elite Athlete Training Secrets"],
+    titles: ["IND vs ZIM Match Highlights - Men's T20 World Cup 2026",
+      "IND vs SL Match Highlight - Jadeja get Wicket of Shanaka",
+      "Rohit rolls to unbeaten ton in clinical ODI chase",
+      "Impossible Moments in Sports Compilation",
+
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/clouds.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/people.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182069/_Hindi_Highlights_IND_v_ZIM_Men_s_T20_World_Cup_2026_720P_s28vvl.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182216/IND_vs_SL_Live_Now_Ravindra_Jadeja_Gets_the_Wicket_of_Shanaka_144P_du43sx.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182443/Rohit_rolls_to_unbeaten_ton_in_clinical_ODI_chase_1080P_zfdozh.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182510/Impossible_Moments_in_Sports_720P_bpukc6.mp4",
+
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/sport1/800/450",
-      "https://picsum.photos/seed/sport2/800/450",
-    ],
+
   },
 
   {
     name: "Technology",
     tags: ["tech", "programming", "backend", "coding"],
-    titles: ["Build REST API From Scratch", "How Databases Scale to Millions"],
+    titles: ["NVIDIA's Big Return to PCs - Tech Giant Plans to Launch Laptop Chips with Dell and Lenovo Models in 2026",
+      "How Life Will Look Like in 2050",
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/bike.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/animals.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182452/NVIDIA_s_BIG_Return_To_PCs_Tech_Giant_Plans_To_Launch_Laptop_Chips_With_Dell_Lenovo_Models_In_2026_720P_t42xvj.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182516/How_Life_Will_Look_Like_In_2050_720p_cjtifm.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/tech1/800/450",
-      "https://picsum.photos/seed/tech2/800/450",
-    ],
+
   },
 
   {
     name: "Comedy",
     tags: ["funny", "meme", "comedy", "viral"],
-    titles: ["When Code Works First Try", "Programmer Life in 60 Seconds"],
+    titles: ["My situations in school and home",
+      "MAD vs MAD Square- Comedy Scene",
+      "Reality - Funny Video",
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/cat.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/soccer.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179628/My_situation_in_school_with_Sahiba_song_videoediting_catreel_funny_viralvideo_720P_vaine8.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772184388/_mad_vs_mad_square_movie_comedy_shorts_trending_720P_df5x6s.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772184528/Reality_azhar2408_shorts_funny_comedy_youtube_720P_ez7iot.mp4",
+
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/comedy1/800/450",
-      "https://picsum.photos/seed/comedy2/800/450",
-    ],
+
   },
 
   {
     name: "Education",
     tags: ["education", "react", "mongodb", "tutorial"],
-    titles: ["Master React in 20 Minutes", "MongoDB Crash Course"],
+    titles: ["How to connect Frontend and Backend - Connect React and Node Step by Step tutorial CoderzArea 1080P pqbm6r",
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/landscape.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181273/How_to_connect_Frontend_and_Backend_Connect_React_and_Node_Step_by_Step_tutorial_CoderzArea_1080P_pqbm6r.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/edu1/800/450",
-    ],
+
   },
 
   {
     name: "Travel",
     tags: ["travel", "vlog", "explore", "adventure"],
-    titles: ["Hidden Paradise Destinations", "Cinematic Travel Vlog"],
+    titles: ["Should never buy BMW, Why?",
+
+    ],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/mountains.mp4",
-      "https://res.cloudinary.com/demo/video/upload/samples/beach.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179681/Wait_for_end..._720P_yivmy7.mp4",
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/travel1/800/450",
-      "https://picsum.photos/seed/travel2/800/450",
-    ],
+
   },
 
   {
@@ -154,11 +167,10 @@ const seedCategories = [
     tags: ["food", "recipe", "cooking", "streetfood"],
     titles: ["10-Minute Pasta Magic", "Street Food Heaven Tour"],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/cooking.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181381/Wedding-style_Chicken_Biryani_Marriage_Biryani_Chicken_Vadi_Biryani_Chicken_Biryani_Cookd_480P_hvqevg.mp4",
+
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/food1/800/450",
-    ],
+
   },
 
   {
@@ -166,11 +178,9 @@ const seedCategories = [
     tags: ["fashion", "style", "outfit", "trend"],
     titles: ["Minimalist Wardrobe Guide", "5 Outfits for 7 Days"],
     videos: [
-      "https://res.cloudinary.com/demo/video/upload/samples/city.mp4",
+      "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179609/Summer_Outfits_fashion_formal_short_720P_kz5ofk.mp4",
     ],
-    thumbnails: [
-      "https://picsum.photos/seed/fashion1/800/450",
-    ],
+
   },
 ];
 
@@ -179,17 +189,31 @@ const seedCategories = [
 // =============================
 
 const shortPool = [
-  "https://res.cloudinary.com/demo/video/upload/samples/elephants.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/sea_turtle.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/dog.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/horse.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/snow.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/clouds.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/people.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/bike.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/animals.mp4",
-  "https://res.cloudinary.com/demo/video/upload/samples/cat.mp4",
-  
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179602/LET_THE_WORLD_BURN_-_Chris_Grey_lyrics_aesthetic_english_songs_whatsapp_status_speed_up_720P_amcji4.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179609/Cheap_Thrills_-_Sia_ft._Sean_Paul_lyrics_aesthetic_English_song_lyrics_aesthetic_music_edit_240P_gc6bly.mp4",
+  "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182216/IND_vs_SL_Live_Now_Ravindra_Jadeja_Gets_the_Wicket_of_Shanaka_144P_du43sx.mp4",
+  "https://filesamples.com/samples/video/mp4/sample_640x360.mp4",
+  "https://filesamples.com/samples/video/mp4/sample_960x400_ocean_with_audio.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179609/Summer_Outfits_fashion_formal_short_720P_kz5ofk.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179628/My_situation_in_school_with_Sahiba_song_videoediting_catreel_funny_viralvideo_720P_vaine8.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179633/Cute_Shorts_for_summer_outfitideas_meesho_meeshohaul_viralshort_trendingshorts_720P_vfgs9a.mp4",
+  "https://media.w3.org/2010/05/sintel/trailer.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772184528/Reality_azhar2408_shorts_funny_comedy_youtube_720P_ez7iot.mp4",
+"https://res.cloudinary.com/drf0cgstx/video/upload/v1772184388/_mad_vs_mad_square_movie_comedy_shorts_trending_720P_df5x6s.mp4",
+  "https://media.w3.org/2010/05/bunny/trailer.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179638/Shape_of_You_-_Ed_Sheeran_lyrics_aesthetic_whatsapp_Status_English_songs_slowed_sped_up_720P_jfqpj7.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179681/Wait_for_end..._720P_yivmy7.mp4",
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/river.mp4",
+  "https://media.w3.org/2010/05/video/movie_300.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182216/IND_vs_SL_Live_Now_Ravindra_Jadeja_Gets_the_Wicket_of_Shanaka_144P_du43sx.mp4",
+  "https://media.w3.org/2010/05/video/movie_300.webm",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179701/Sugar_Brownies_-_DHARIA_lyrics_aesthetic_whatsapp_Status_English_songs_slowed_speed_up_720p60_sv4m7x.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179727/My_situation_in_school_with_Sahiba_song_videoediting_catreel_funny_viralvideo_720P_ngjhcy.mp4",
+  "https://res.cloudinary.com/drf0cgstx/video/upload/v1772180117/_720P_te4r6e.mp4",
+
+
 ];
 
 async function main() {

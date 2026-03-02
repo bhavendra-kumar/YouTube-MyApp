@@ -61,6 +61,9 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181240/ROCKSTAR_Kun_Faya_Kun_Song_8K_Full_Video_Ranbir_Kapoor_A.R._Rahman_Javed_Ali_Mohit_Chauhan_720P_xke6ix.mp4",
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -73,6 +76,9 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181506/Making_Of_Ram_Charan_s_ICONIC_Intro_Ft._S._S._Rajamouli_RRR_Behind_Beyond_Netflix_India_720P_pugjan.mp4",
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -84,6 +90,9 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181432/Dimitri_Vegas_Like_Mike_-_Rampage_Free_Fire_Rampage_Theme_Song_Official_Music_Video_720P_ynzwvk.mp4",
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -104,6 +113,9 @@ const seedCategories = [
 
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -118,10 +130,13 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772182516/How_Life_Will_Look_Like_In_2050_720p_cjtifm.mp4",
 
     ],
-
+    thumbnails:[
+      "",
+    ],
   },
 
   {
+  
     name: "Comedy",
     tags: ["funny", "meme", "comedy", "viral"],
     titles: ["My situations in school and home",
@@ -135,6 +150,9 @@ const seedCategories = [
 
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -147,6 +165,9 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181273/How_to_connect_Frontend_and_Backend_Connect_React_and_Node_Step_by_Step_tutorial_CoderzArea_1080P_pqbm6r.mp4",
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -159,7 +180,9 @@ const seedCategories = [
     videos: [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179681/Wait_for_end..._720P_yivmy7.mp4",
     ],
-
+    thumbnails:[
+      "",
+    ]
   },
 
   {
@@ -170,6 +193,9 @@ const seedCategories = [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772181381/Wedding-style_Chicken_Biryani_Marriage_Biryani_Chicken_Vadi_Biryani_Chicken_Biryani_Cookd_480P_hvqevg.mp4",
 
     ],
+    thumbnails:[
+      "",
+    ]
 
   },
 
@@ -180,6 +206,9 @@ const seedCategories = [
     videos: [
       "https://res.cloudinary.com/drf0cgstx/video/upload/v1772179609/Summer_Outfits_fashion_formal_short_720P_kz5ofk.mp4",
     ],
+    thumbnails:[ 
+      "",
+    ]
 
   },
 ];

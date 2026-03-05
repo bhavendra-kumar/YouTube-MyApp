@@ -14,6 +14,7 @@ export type AppUser = {
   image?: string;
   bannerUrl?: string;
   role?: string;
+  plan?: "FREE" | "PREMIUM";
   token?: string;
   channelname?: string;
   description?: string;

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 
 import User from "../models/user.js";
 import RefreshToken from "../models/refreshToken.js";
+import Video from "../models/video.js";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -311,5 +312,28 @@ export const updateChannelMedia = async (req, res) => {
     .lean();
 
   return sendSuccess(res, updated, 200);
+};
+
+export const getMyDownloads = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) throw new AppError("Unauthorized", 401);
+
+  const user = await User.findById(userId)
+    .select("downloadHistory")
+    .populate({
+      path: "downloadHistory.videoId",
+      model: Video,
+      select: "videotitle thumbnailUrl videochanel createdAt duration contentType isShort uploader",
+    })
+    .lean();
+
+  if (!user) throw new AppError("User not found", 404);
+
+  const items = Array.isArray(user.downloadHistory) ? user.downloadHistory : [];
+  const sorted = items
+    .filter((x) => x && x.videoId)
+    .sort((a, b) => new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime());
+
+  return sendSuccess(res, { items: sorted }, 200);
 };
 

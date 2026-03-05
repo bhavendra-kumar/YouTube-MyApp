@@ -6,6 +6,7 @@ import axiosClient from "@/services/http/axios";
 import ErrorState from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildMediaUrl } from "@/lib/media";
+import { uniqueById } from "@/lib/utils";
 
 type SearchResultProps = {
   query?: string;
@@ -35,7 +36,7 @@ const SearchResult = ({ query }: SearchResultProps) => {
         params: { page: 1, limit: 50 },
       });
       const items = res.data?.items;
-      setAllVideos(Array.isArray(items) ? items : []);
+      setAllVideos(uniqueById(Array.isArray(items) ? items : []));
     } catch (e) {
       console.error("Failed to load videos", e);
       setAllVideos([]);

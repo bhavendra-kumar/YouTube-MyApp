@@ -149,15 +149,11 @@ const Sidebar = () => {
                         </Link>
                     </Button>
 
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        className={itemClass}
-                        onClick={() => comingSoon("Downloads")}
-                        aria-label="Downloads"
-                    >
-                        <Download className={iconClass} />
-                        <span className={labelClass}>Downloads</span>
+                    <Button asChild variant="ghost" className={itemClass}>
+                        <Link href="/profile/downloads" aria-label="Downloads">
+                            <Download className={iconClass} />
+                            <span className={labelClass}>Downloads</span>
+                        </Link>
                     </Button>
 
                     <div className="my-2 border-t" />

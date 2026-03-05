@@ -5,6 +5,7 @@ import type { Category } from "@/components/CategoryTab";
 import axiosClient from "@/services/http/axios";
 import VideoCard from "@/components/VideoCard"
 import { Button } from "@/components/ui/button";
+import { uniqueById } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,7 +126,7 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
 
           const items = res.data?.data;
           const list = Array.isArray(items) ? items : [];
-          setVideos((prev) => (page === 1 ? list : mergeUniqueById(prev, list)));
+          setVideos((prev) => uniqueById(page === 1 ? list : mergeUniqueById(prev, list)));
 
           const total = Number(res.data?.total ?? 0);
           const nextTotalPages = total === 0 ? 0 : Math.ceil(total / limit);
@@ -148,7 +149,7 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
 
           const items = res.data?.items;
           const list = Array.isArray(items) ? items : [];
-          setVideos((prev) => (page === 1 ? list : mergeUniqueById(prev, list)));
+          setVideos((prev) => uniqueById(page === 1 ? list : mergeUniqueById(prev, list)));
 
           const nextTotalPages = Number(res.data?.totalPages ?? 0);
           const nextCurrentPage = Number(res.data?.currentPage ?? page);
@@ -229,7 +230,8 @@ export default function Videogrid({ activeCategory = "All" }: VideogridProps) {
 
   const filtered = useMemo(() => {
     // Server already filters by category and search. Keep this as a safe-guard.
-    return videos.filter((v) => {
+    const deduped = uniqueById(videos);
+    return deduped.filter((v) => {
       if (!search) return true;
       const haystack = `${v.videotitle ?? ""} ${v.videochanel ?? ""}`.toLowerCase();
       return haystack.includes(search);

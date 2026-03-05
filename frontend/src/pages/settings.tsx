@@ -3,6 +3,8 @@ import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import Channeldialogue from "@/components/channeldialogue";
+import UpgradeToPremiumButton from "@/components/UpgradeToPremiumButton";
+import ProfileDownloads from "@/components/ProfileDownloads";
 import { useUser } from "@/context/AuthContext";
 import { notify } from "@/services/toast";
 import Link from "next/link";
@@ -99,6 +101,24 @@ export default function SettingsPage() {
               <span className="text-muted-foreground">Role: </span>
               <span>{user?.role || "—"}</span>
             </div>
+            <div>
+              <span className="text-muted-foreground">Plan: </span>
+              <span>{user?.plan || "FREE"}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <UpgradeToPremiumButton />
+          </div>
+        </section>
+
+        <section className="rounded-lg border bg-card p-4">
+          <h2 className="text-lg font-medium">Downloads</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your download history is stored securely in your account.
+          </p>
+          <div className="mt-4">
+            <ProfileDownloads />
           </div>
         </section>
 

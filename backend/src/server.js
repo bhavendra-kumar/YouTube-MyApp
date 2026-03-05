@@ -16,6 +16,7 @@ import { sendSuccess } from "./utils/apiResponse.js";
 
 import userroutes from "./routes/auth.js";
 import videoroutes from "./routes/video.js";
+import paymentroutes from "./routes/payment.js";
 import likeroutes from "./routes/like.js";
 import watchlaterroutes from "./routes/watchlater.js";
 import historyrroutes from "./routes/history.js";
@@ -23,6 +24,7 @@ import commentroutes from "./routes/comment.js";
 import subscriptionroutes from "./routes/subscription.js";
 import playlistroutes from "./routes/playlist.js";
 import communityroutes from "./routes/community.js";
+import downloadroutes from "./routes/downloads.js";
 
 import Like from "./models/like.js";
 import Dislike from "./models/dislike.js";
@@ -49,8 +51,18 @@ const server = createHttpServer(app);
 const io = initSocket(server);
 app.set("io", io);
 
+// Prevent unhandled 'error' events from crashing the process.
+// (We still handle startup listen errors more explicitly below.)
+server.on("error", (err) => {
+  if (err?.code === "EADDRINUSE" && !server.listening) return;
+  // eslint-disable-next-line no-console
+  console.error("HTTP server error", err);
+});
+
 app.use("/user", userroutes);
 app.use("/video", videoroutes);
+app.use("/downloads", downloadroutes);
+app.use("/payment", paymentroutes);
 app.use("/like", likeroutes);
 app.use("/watch", watchlaterroutes);
 app.use("/history", historyrroutes);
@@ -62,6 +74,99 @@ app.use("/community", communityroutes);
 app.use(notFound);
 app.use(errorHandler);
 
+function buildPortInUseMessage(port) {
+  return [
+    `Port ${port} is already in use.`,
+    "You can:",
+    `- Stop the other process using port ${port}`,
+    "- Or change PORT in your .env file",
+  ].join("\n");
+}
+
+async function listenWithFallback(startPort) {
+  const allowFallback =
+    process.env.ALLOW_PORT_FALLBACK === "true" &&
+    env.nodeEnv !== "production" &&
+    process.env.PORT_STRICT !== "true";
+  const retryCount = Number.parseInt(process.env.PORT_RETRY_COUNT || "10", 10);
+  const maxAttempts = allowFallback ? Math.max(1, retryCount + 1) : 1;
+
+  let port = startPort;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await new Promise((resolve, reject) => {
+        const onError = (err) => {
+          cleanup();
+          reject(err);
+        };
+        const onListening = () => {
+          cleanup();
+          resolve();
+        };
+        const cleanup = () => {
+          server.off("error", onError);
+          server.off("listening", onListening);
+        };
+
+        server.once("error", onError);
+        server.once("listening", onListening);
+        server.listen(port);
+      });
+
+      return port;
+    } catch (err) {
+      const isAddrInUse = err?.code === "EADDRINUSE";
+      const isLastAttempt = attempt === maxAttempts;
+
+      if (!isAddrInUse || !allowFallback || isLastAttempt) {
+        if (isAddrInUse) {
+          throw new Error(buildPortInUseMessage(port));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          
+        }
+
+        throw err;
+      }
+
+      // eslint-disable-next-line no-console
+      console.warn(`Port ${port} is in use; trying ${port + 1}...`);
+      port += 1;
+    }
+  }
+
+  return startPort;
+}
+
 async function start() {
   await connectDb();
 
@@ -72,14 +177,19 @@ async function start() {
     console.warn("Index initialization warning", err?.message || err);
   }
 
-  server.listen(env.port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`server running on port ${env.port}`);
-  });
+  const actualPort = await listenWithFallback(env.port);
+  app.set("port", actualPort);
+
+  // eslint-disable-next-line no-console
+  console.log(`server running on port ${actualPort}`);
 }
 
 start().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error("Failed to start server", err);
+  console.error("Failed to start server:", err?.message || err);
+  if (process.env.STARTUP_DEBUG === "true" && err?.stack) {
+    // eslint-disable-next-line no-console
+    console.error(err.stack);
+  }
   process.exit(1);
 });

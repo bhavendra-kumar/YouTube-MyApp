@@ -48,6 +48,7 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [downloading, setDownloading] = useState(false);
   const [startAtEnabled, setStartAtEnabled] = useState(false);
   const [startAtTime, setStartAtTime] = useState("0:00");
   const shareWasOpenRef = useRef(false);
@@ -493,10 +494,23 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
     }
   };
 
-  const handleDownload = () => {
-    const url = buildMediaUrl(video?.filepath);
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+  const handleDownload = async () => {
+    if (!video?._id) return;
+    if (!user?._id) {
+      notify.info("Sign in to download");
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      const res = await axiosClient.post(`/video/download/${video._id}`);
+      notify.success(res.data?.message || "Video downloaded successfully");
+    } catch (e: any) {
+      console.error(e);
+      notify.error(e?.response?.data?.message || "Download failed");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handleSubscribe = async () => {
@@ -814,9 +828,10 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
             size="sm"
             className="rounded-full bg-muted"
             onClick={handleDownload}
+            disabled={downloading}
           >
             <Download className="w-5 h-5 mr-2" />
-            Download
+            {downloading ? "Downloading…" : "Download"}
           </Button>
           <Button variant="ghost" size="icon" className="rounded-full bg-muted">
             <MoreHorizontal className="w-5 h-5" />

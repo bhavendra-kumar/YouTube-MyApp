@@ -36,6 +36,24 @@ type CommentItem = {
   commentbody?: string;
   usercommented?: string;
   createdAt?: string;
+  city?: string;
+  likes?: string[];
+  dislikes?: string[];
+  isDeleted?: boolean;
+};
+
+type CommentReactionResponse = {
+  _id: string;
+  videoid: string;
+  likesCount: number;
+  dislikesCount: number;
+  isDeleted: boolean;
+};
+
+type CommentTranslationState = {
+  original: string;
+  translated: string;
+  showing: "translated" | "original";
 };
 
 type HeartBurst = {
@@ -79,6 +97,11 @@ export default function ShortsPage() {
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentPosting, setCommentPosting] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+
+  const [commentTargetLang, setCommentTargetLang] = useState("en");
+  const [commentReactionPendingById, setCommentReactionPendingById] = useState<Record<string, boolean>>({});
+  const [commentTranslatePendingById, setCommentTranslatePendingById] = useState<Record<string, boolean>>({});
+  const [commentTranslationById, setCommentTranslationById] = useState<Record<string, CommentTranslationState>>({});
 
   const [heartBurstsByVideo, setHeartBurstsByVideo] = useState<Record<string, HeartBurst[]>>({});
 
@@ -502,6 +525,128 @@ export default function ShortsPage() {
     }
   };
 
+  const updateCommentForVideo = (
+    videoId: string,
+    commentId: string,
+    updater: (c: CommentItem) => CommentItem
+  ) => {
+    setCommentsByVideo((prev) => ({
+      ...prev,
+      [videoId]: (prev[videoId] || []).map((c) => (String(c._id) === String(commentId) ? updater(c) : c)),
+    }));
+  };
+
+  const withOptimisticCommentReaction = (comment: CommentItem, next: "like" | "dislike") => {
+    const userId = user?._id;
+    if (!userId) return comment;
+
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    const dislikes = Array.isArray(comment.dislikes) ? comment.dislikes : [];
+
+    if (next === "like") {
+      const nextLikes = likes.includes(userId) ? likes : [userId, ...likes];
+      const nextDislikes = dislikes.filter((id) => String(id) !== String(userId));
+      return { ...comment, likes: nextLikes, dislikes: nextDislikes };
+    }
+
+    const nextDislikes = dislikes.includes(userId) ? dislikes : [userId, ...dislikes];
+    const nextLikes = likes.filter((id) => String(id) !== String(userId));
+    return { ...comment, likes: nextLikes, dislikes: nextDislikes };
+  };
+
+  const likeComment = async (videoId: string, comment: CommentItem) => {
+    if (!user?._id) return;
+    if (commentReactionPendingById[comment._id]) return;
+    if ((comment.likes || []).includes(user._id)) return;
+
+    const prev = comment;
+    setCommentReactionPendingById((m) => ({ ...m, [comment._id]: true }));
+    updateCommentForVideo(videoId, comment._id, (c) => withOptimisticCommentReaction(c, "like"));
+
+    try {
+      const res = await axiosClient.post(`/comment/${comment._id}/like`);
+      const data = res.data as CommentReactionResponse;
+      if (data?.isDeleted) {
+        setCommentsByVideo((p) => ({
+          ...p,
+          [videoId]: (p[videoId] || []).filter((c) => String(c._id) !== String(comment._id)),
+        }));
+      }
+    } catch {
+      updateCommentForVideo(videoId, comment._id, () => prev);
+    } finally {
+      setCommentReactionPendingById((m) => ({ ...m, [comment._id]: false }));
+    }
+  };
+
+  const dislikeComment = async (videoId: string, comment: CommentItem) => {
+    if (!user?._id) return;
+    if (commentReactionPendingById[comment._id]) return;
+    if ((comment.dislikes || []).includes(user._id)) return;
+
+    const prev = comment;
+    setCommentReactionPendingById((m) => ({ ...m, [comment._id]: true }));
+    updateCommentForVideo(videoId, comment._id, (c) => withOptimisticCommentReaction(c, "dislike"));
+
+    try {
+      const res = await axiosClient.post(`/comment/${comment._id}/dislike`);
+      const data = res.data as CommentReactionResponse;
+      if (data?.isDeleted) {
+        setCommentsByVideo((p) => ({
+          ...p,
+          [videoId]: (p[videoId] || []).filter((c) => String(c._id) !== String(comment._id)),
+        }));
+      }
+    } catch {
+      updateCommentForVideo(videoId, comment._id, () => prev);
+    } finally {
+      setCommentReactionPendingById((m) => ({ ...m, [comment._id]: false }));
+    }
+  };
+
+  const translateComment = async (comment: CommentItem) => {
+    const id = String(comment._id);
+    if (commentTranslatePendingById[id]) return;
+
+    const existing = commentTranslationById[id];
+    if (existing) {
+      setCommentTranslationById((m) => ({
+        ...m,
+        [id]: {
+          ...existing,
+          showing: existing.showing === "translated" ? "original" : "translated",
+        },
+      }));
+      return;
+    }
+
+    setCommentTranslatePendingById((m) => ({ ...m, [id]: true }));
+    try {
+      const res = await axiosClient.post("/comment/translate", {
+        text: comment.commentbody || "",
+        targetLang: commentTargetLang,
+      });
+
+      const translated = res.data?.translated;
+      if (typeof translated !== "string" || !translated.trim()) {
+        throw new Error("invalid translation");
+      }
+
+      setCommentTranslationById((m) => ({
+        ...m,
+        [id]: {
+          original: comment.commentbody || "",
+          translated,
+          showing: "translated",
+        },
+      }));
+    } catch {
+      // ignore
+    } finally {
+      setCommentTranslatePendingById((m) => ({ ...m, [id]: false }));
+    }
+  };
+
   // Real-time comments via Socket.IO while sheet is open
   useEffect(() => {
     const videoId = openComments;
@@ -744,6 +889,24 @@ export default function ShortsPage() {
               </Button>
             </div>
 
+            <div className="mb-4 flex items-center gap-3">
+              <label className="text-sm text-muted-foreground" htmlFor="shorts-comment-target-lang">
+                Translate to
+              </label>
+              <select
+                id="shorts-comment-target-lang"
+                value={commentTargetLang}
+                onChange={(e) => setCommentTargetLang(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="hi">Hindi</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+
             {!user ? (
               <div className="mb-4 rounded-lg border bg-card p-3 text-sm text-muted-foreground">
                 Sign in to comment.
@@ -768,15 +931,56 @@ export default function ShortsPage() {
               <div className="text-sm text-muted-foreground">Loading comments…</div>
             ) : (
               <div className="space-y-3">
-                {(commentsByVideo[openComments] || []).map((c) => (
-                  <div key={c._id} className="rounded-lg border bg-card p-3">
-                    <div className="text-sm font-medium">
-                      {c.usercommented || "User"}
-                    </div>
-                    <div className="mt-1 text-sm text-foreground/90">{c.commentbody || ""}</div>
-                  </div>
-                ))}
-                {(commentsByVideo[openComments] || []).length === 0 ? (
+                {(commentsByVideo[openComments] || [])
+                  .filter((c) => !c?.isDeleted)
+                  .map((c) => {
+                    const likesCount = Array.isArray(c.likes) ? c.likes.length : 0;
+                    const dislikesCount = Array.isArray(c.dislikes) ? c.dislikes.length : 0;
+                    const pendingReaction = Boolean(commentReactionPendingById[c._id]);
+                    const pendingTranslate = Boolean(commentTranslatePendingById[c._id]);
+                    const translation = commentTranslationById[c._id];
+                    const displayedText =
+                      translation?.showing === "translated" ? translation.translated : c.commentbody || "";
+
+                    return (
+                      <div key={c._id} className="rounded-lg border bg-card p-3">
+                        <div className="text-sm font-medium">{c.usercommented || "User"}</div>
+                        <div className="mt-1 text-sm text-foreground/90">{displayedText}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{c.city || "Unknown"}</div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={pendingReaction || !user}
+                            onClick={() => likeComment(openComments, c)}
+                          >
+                            👍 Like {likesCount}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={pendingReaction || !user}
+                            onClick={() => dislikeComment(openComments, c)}
+                          >
+                            👎 Dislike {dislikesCount}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={pendingTranslate}
+                            onClick={() => translateComment(c)}
+                          >
+                            🌍 {translation ? (translation.showing === "translated" ? "Show Original" : "Show Translation") : "Translate"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {(commentsByVideo[openComments] || []).filter((c) => !c?.isDeleted).length === 0 ? (
                   <div className="text-sm text-muted-foreground">No comments yet.</div>
                 ) : null}
               </div>

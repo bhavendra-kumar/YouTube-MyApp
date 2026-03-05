@@ -15,6 +15,7 @@ import {
 	getuser,
 	login,
 	logout,
+	getMyDownloads,
 	me,
 	refresh,
 	register,
@@ -29,6 +30,7 @@ routes.post("/login", validate(loginSchema), asyncHandler(login));
 routes.post("/refresh", validate(refreshSchema), asyncHandler(refresh));
 routes.post("/logout", validate(logoutSchema), asyncHandler(logout));
 routes.get("/me", authMiddleware, asyncHandler(me));
+routes.get("/downloads", authMiddleware, asyncHandler(getMyDownloads));
 
 // Minimal admin-only route to demonstrate RBAC
 routes.get(

@@ -40,4 +40,10 @@ export const env = {
   cookie: {
     refreshTokenName: process.env.REFRESH_TOKEN_COOKIE_NAME || "refreshToken",
   },
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+    premiumAmountPaise: Number.parseInt(process.env.PREMIUM_AMOUNT_PAISE || "10000", 10),
+    premiumCurrency: process.env.PREMIUM_CURRENCY || "INR",
+  },
 };

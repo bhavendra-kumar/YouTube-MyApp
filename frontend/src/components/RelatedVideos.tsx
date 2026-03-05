@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns"
 import { buildMediaUrl } from "@/lib/media";
+import { uniqueById } from "@/lib/utils";
 
 interface RelatedVideosProps {
   videos: Array<{
@@ -14,9 +15,10 @@ interface RelatedVideosProps {
   }>;
 }
 export default function RelatedVideos({ videos }: RelatedVideosProps) {
+  const uniqueVideos = uniqueById(videos);
   return (
     <div className="space-y-3">
-      {videos.map((video) => (
+      {uniqueVideos.map((video) => (
         <Link
           key={video._id}
           href={`/watch/${video._id}`}

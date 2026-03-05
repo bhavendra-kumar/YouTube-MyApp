@@ -1,8 +1,10 @@
 import express from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteMyVideo, getallvideo, getHomeFeed, getShortsFeed, getvideobyid, postWatchTime, updateMyVideo, uploadVideo } from "../controllers/video.js";
+import { downloadVideo } from "../controllers/videoDownload.js";
 import upload from "../utils/upload.js";
 import authMiddleware from "../middleware/auth.js";
+import { canDownloadVideo } from "../middleware/canDownload.js";
 
 const routes = express.Router();
 
@@ -24,6 +26,12 @@ routes.get("/homefeed", asyncHandler(getHomeFeed));
 routes.get("/shorts", asyncHandler(getShortsFeed));
 routes.get("/recommended", authMiddleware, asyncHandler(getHomeFeed));
 routes.post("/watchtime", asyncHandler(postWatchTime));
+routes.post(
+	"/download/:videoId",
+	authMiddleware,
+	asyncHandler(canDownloadVideo),
+	asyncHandler(downloadVideo)
+);
 routes.patch("/:id", authMiddleware, asyncHandler(updateMyVideo));
 routes.delete("/:id", authMiddleware, asyncHandler(deleteMyVideo));
 routes.get("/:id", asyncHandler(getvideobyid));

@@ -8,6 +8,7 @@ import axiosClient from "@/services/http/axios";
 import { getSocket } from "@/lib/socket";
 import { notify } from "@/services/toast";
 import { Skeleton } from "@/components/ui/skeleton";
+
 interface Comment {
   _id: string;
   videoid: string;
@@ -15,7 +16,27 @@ interface Comment {
   commentbody: string;
   usercommented: string;
   commentedon: string;
+  city?: string;
+  originalLanguage?: string;
+  likes?: string[];
+  dislikes?: string[];
+  isDeleted?: boolean;
 }
+
+type ReactionResponse = {
+  _id: string;
+  videoid: string;
+  likesCount: number;
+  dislikesCount: number;
+  isDeleted: boolean;
+};
+
+type TranslationState = {
+  original: string;
+  translated: string;
+  showing: "translated" | "original";
+};
+
 const Comments = ({ videoId }: any) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -24,6 +45,11 @@ const Comments = ({ videoId }: any) => {
   const [editText, setEditText] = useState("");
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
+
+  const [targetLang, setTargetLang] = useState("en");
+  const [reactionPendingById, setReactionPendingById] = useState<Record<string, boolean>>({});
+  const [translatePendingById, setTranslatePendingById] = useState<Record<string, boolean>>({});
+  const [translationById, setTranslationById] = useState<Record<string, TranslationState>>({});
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -91,7 +117,9 @@ const Comments = ({ videoId }: any) => {
       });
 
       const items = res.data?.items;
-      setComments(Array.isArray(items) ? items : []);
+      const next = Array.isArray(items) ? items : [];
+      // Extra safety: never render soft-deleted comments.
+      setComments(next.filter((c: Comment) => !c?.isDeleted));
 
       const nextTotalPages = Number(res.data?.totalPages ?? 0);
       const nextCurrentPage = Number(res.data?.currentPage ?? page);
@@ -146,6 +174,11 @@ const Comments = ({ videoId }: any) => {
       commentbody: newComment,
       usercommented: String(user.name || "You"),
       commentedon: new Date().toISOString(),
+      city: "Unknown",
+      originalLanguage: "unknown",
+      likes: [],
+      dislikes: [],
+      isDeleted: false,
     };
 
     const previousText = newComment;
@@ -188,6 +221,124 @@ const Comments = ({ videoId }: any) => {
     setEditText(comment.commentbody);
   };
 
+  const withOptimisticReaction = (comment: Comment, next: "like" | "dislike") => {
+    const userId = user?._id;
+    if (!userId) return comment;
+
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    const dislikes = Array.isArray(comment.dislikes) ? comment.dislikes : [];
+
+    if (next === "like") {
+      const nextLikes = likes.includes(userId) ? likes : [userId, ...likes];
+      const nextDislikes = dislikes.filter((id) => String(id) !== String(userId));
+      return { ...comment, likes: nextLikes, dislikes: nextDislikes };
+    }
+
+    const nextDislikes = dislikes.includes(userId) ? dislikes : [userId, ...dislikes];
+    const nextLikes = likes.filter((id) => String(id) !== String(userId));
+    return { ...comment, likes: nextLikes, dislikes: nextDislikes };
+  };
+
+  const handleLike = async (comment: Comment) => {
+    if (!user?._id) {
+      notify.info("Please sign in to like comments");
+      return;
+    }
+    if (reactionPendingById[comment._id]) return;
+    if ((comment.likes || []).includes(user._id)) return;
+
+    const prev = comment;
+    setReactionPendingById((m) => ({ ...m, [comment._id]: true }));
+    setComments((list) =>
+      list.map((c) => (c._id === comment._id ? withOptimisticReaction(c, "like") : c))
+    );
+
+    try {
+      const res = await axiosClient.post(`/comment/${comment._id}/like`);
+      const data = res.data as ReactionResponse;
+
+      if (data?.isDeleted) {
+        setComments((list) => list.filter((c) => c._id !== comment._id));
+      }
+    } catch (error) {
+      setComments((list) => list.map((c) => (c._id === comment._id ? prev : c)));
+      notify.error("Could not like comment");
+    } finally {
+      setReactionPendingById((m) => ({ ...m, [comment._id]: false }));
+    }
+  };
+
+  const handleDislike = async (comment: Comment) => {
+    if (!user?._id) {
+      notify.info("Please sign in to dislike comments");
+      return;
+    }
+    if (reactionPendingById[comment._id]) return;
+    if ((comment.dislikes || []).includes(user._id)) return;
+
+    const prev = comment;
+    setReactionPendingById((m) => ({ ...m, [comment._id]: true }));
+    setComments((list) =>
+      list.map((c) => (c._id === comment._id ? withOptimisticReaction(c, "dislike") : c))
+    );
+
+    try {
+      const res = await axiosClient.post(`/comment/${comment._id}/dislike`);
+      const data = res.data as ReactionResponse;
+
+      if (data?.isDeleted) {
+        setComments((list) => list.filter((c) => c._id !== comment._id));
+      }
+    } catch (error) {
+      setComments((list) => list.map((c) => (c._id === comment._id ? prev : c)));
+      notify.error("Could not dislike comment");
+    } finally {
+      setReactionPendingById((m) => ({ ...m, [comment._id]: false }));
+    }
+  };
+
+  const handleTranslate = async (comment: Comment) => {
+    if (translatePendingById[comment._id]) return;
+
+    const existing = translationById[comment._id];
+    if (existing) {
+      setTranslationById((m) => ({
+        ...m,
+        [comment._id]: {
+          ...existing,
+          showing: existing.showing === "translated" ? "original" : "translated",
+        },
+      }));
+      return;
+    }
+
+    setTranslatePendingById((m) => ({ ...m, [comment._id]: true }));
+    try {
+      const res = await axiosClient.post("/comment/translate", {
+        text: comment.commentbody,
+        targetLang,
+      });
+
+      const translated = res.data?.translated;
+      if (typeof translated !== "string" || !translated.trim()) {
+        throw new Error("invalid translation");
+      }
+
+      setTranslationById((m) => ({
+        ...m,
+        [comment._id]: {
+          original: comment.commentbody,
+          translated,
+          showing: "translated",
+        },
+      }));
+    } catch (error) {
+      notify.error("Could not translate comment");
+    } finally {
+      setTranslatePendingById((m) => ({ ...m, [comment._id]: false }));
+    }
+  };
+
   const handleUpdateComment = async () => {
     if (!editText.trim()) return;
     try {
@@ -225,7 +376,24 @@ const Comments = ({ videoId }: any) => {
     <div className="space-y-6">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-xl font-semibold">Comments</h2>
-        {pageLabel && <span className="text-sm text-muted-foreground">{pageLabel}</span>}
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-muted-foreground" htmlFor="comment-target-lang">
+            Translate to
+          </label>
+          <select
+            id="comment-target-lang"
+            value={targetLang}
+            onChange={(e) => setTargetLang(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="hi">Hindi</option>
+            <option value="ar">Arabic</option>
+          </select>
+          {pageLabel && <span className="text-sm text-muted-foreground">{pageLabel}</span>}
+        </div>
       </div>
 
       {user && (
@@ -265,7 +433,18 @@ const Comments = ({ videoId }: any) => {
             No comments yet. Be the first to comment!
           </p>
         ) : (
-          comments.map((comment) => (
+          comments
+            .filter((c) => !c?.isDeleted)
+            .map((comment) => {
+              const likesCount = Array.isArray(comment.likes) ? comment.likes.length : 0;
+              const dislikesCount = Array.isArray(comment.dislikes) ? comment.dislikes.length : 0;
+              const pendingReaction = Boolean(reactionPendingById[comment._id]);
+              const pendingTranslate = Boolean(translatePendingById[comment._id]);
+              const translation = translationById[comment._id];
+              const displayedText =
+                translation?.showing === "translated" ? translation.translated : comment.commentbody;
+
+              return (
             <div key={comment._id} className="flex gap-4">
               <Avatar className="w-10 h-10">
                 <AvatarImage src="/placeholder.svg?height=40&width=40" />
@@ -307,7 +486,38 @@ const Comments = ({ videoId }: any) => {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm">{comment.commentbody}</p>
+                    <p className="text-sm">{displayedText}</p>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {comment.city || "Unknown"}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLike(comment)}
+                        disabled={pendingReaction}
+                      >
+                        👍 Like {likesCount}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDislike(comment)}
+                        disabled={pendingReaction}
+                      >
+                        👎 Dislike {dislikesCount}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTranslate(comment)}
+                        disabled={pendingTranslate}
+                      >
+                        🌍 {translation ? (translation.showing === "translated" ? "Show Original" : "Show Translation") : "Translate"}
+                      </Button>
+                    </div>
+
                     {comment.userid === user?._id && (
                       <div className="flex gap-2 mt-2 text-sm text-gray-500">
                         <button onClick={() => handleEdit(comment)}>
@@ -322,7 +532,8 @@ const Comments = ({ videoId }: any) => {
                 )}
               </div>
             </div>
-          ))
+              );
+            })
         )}
       </div>
 

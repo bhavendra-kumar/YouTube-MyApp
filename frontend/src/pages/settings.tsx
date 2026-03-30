@@ -105,6 +105,28 @@ export default function SettingsPage() {
               <span className="text-muted-foreground">Plan: </span>
               <span>{user?.plan || "FREE"}</span>
             </div>
+            {user?.plan && user.plan !== "FREE" ? (
+              <>
+                <div>
+                  <span className="text-muted-foreground">Purchased: </span>
+                  <span>
+                    {user?.planPurchasedAt ? new Date(user.planPurchasedAt).toLocaleString() : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Amount: </span>
+                  <span>
+                    {typeof user?.planAmountPaid === "number" && user.planAmountPaid > 0
+                      ? `₹${(user.planAmountPaid / 100).toFixed(0)}`
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Invoice ID: </span>
+                  <span>{user?.invoiceId || "—"}</span>
+                </div>
+              </>
+            ) : null}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">

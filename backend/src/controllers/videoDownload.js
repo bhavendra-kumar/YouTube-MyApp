@@ -86,7 +86,7 @@ export const downloadVideo = async (req, res) => {
 
     return sendSuccess(
       res,
-      { message: "Video downloaded successfully", path: publicPath },
+      { message: "Video downloaded successfully", path: publicPath, downloadUrl: publicPath },
       200
     );
   }
@@ -150,7 +150,7 @@ export const downloadVideo = async (req, res) => {
 
   return sendSuccess(
     res,
-    { message: "Video downloaded successfully", path: publicPath },
+    { message: "Video downloaded successfully", path: publicPath, downloadUrl: publicPath },
     200
   );
 };

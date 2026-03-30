@@ -41,6 +41,8 @@ interface VideoPlayerProps {
   canPrev?: boolean;
   canNext?: boolean;
   onPlaybackTimeChange?: (seconds: number) => void;
+  watchLimitSeconds?: number | null;
+  onWatchLimitReached?: () => void;
 }
 
 function formatTime(totalSeconds: number) {
@@ -59,6 +61,8 @@ export default function VideoPlayer({
   canPrev,
   canNext,
   onPlaybackTimeChange,
+  watchLimitSeconds,
+  onWatchLimitReached,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +70,25 @@ export default function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+
+  const limitTriggeredRef = useRef(false);
+  const watchLimitSecondsRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const normalized =
+      typeof watchLimitSeconds === "number" && Number.isFinite(watchLimitSeconds) && watchLimitSeconds > 0
+        ? Math.floor(watchLimitSeconds)
+        : null;
+    watchLimitSecondsRef.current = normalized;
+
+    // If the user upgrades mid-video, allow playback to resume.
+    limitTriggeredRef.current = false;
+  }, [watchLimitSeconds]);
+
+  useEffect(() => {
+    // New video => reset limit state.
+    limitTriggeredRef.current = false;
+  }, [video?._id]);
 
   const lastReportedSecondRef = useRef<number>(-1);
   const lastReportedAtRef = useRef<number>(0);
@@ -111,9 +134,14 @@ export default function VideoPlayer({
   const [captionsOn, setCaptionsOn] = useState(false);
   const [activeCaptionLang, setActiveCaptionLang] = useState<string | null>(null);
 
-  const lastTouchRef = useRef<{ time: number; x: number } | null>(null);
+  const tapTimerRef = useRef<number | null>(null);
+  const lastTouchRef = useRef<{ time: number; x: number; count: number; region: "left" | "center" | "right" } | null>(null);
   const [seekToast, setSeekToast] = useState<string | null>(null);
   const seekToastTimerRef = useRef<number | null>(null);
+
+  const rippleIdRef = useRef(0);
+  const rippleTimersRef = useRef<Record<number, number>>({});
+  const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([]);
 
   const sources = useMemo(() => {
     const raw = Array.isArray(video?.sources) ? video.sources : [];
@@ -189,6 +217,19 @@ export default function VideoPlayer({
     const nextTime = Number.isFinite(el.currentTime) ? el.currentTime : 0;
     setCurrentTime(nextTime);
 
+    const limit = watchLimitSecondsRef.current;
+    if (limit !== null && !limitTriggeredRef.current && nextTime >= limit) {
+      limitTriggeredRef.current = true;
+      try {
+        el.pause();
+      } catch {
+        // ignore
+      }
+      setIsPlaying(false);
+      setShowControls(true);
+      onWatchLimitReached?.();
+    }
+
     if (onPlaybackTimeChange) {
       const sec = Math.max(0, Math.floor(nextTime));
       const now = typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -221,9 +262,32 @@ export default function VideoPlayer({
     }
   };
 
+  const clearTapTimer = () => {
+    if (tapTimerRef.current) {
+      window.clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  };
+
+  const spawnRipple = (x: number, y: number) => {
+    const id = ++rippleIdRef.current;
+    setRipples((prev) => [...prev, { id, x, y }]);
+    rippleTimersRef.current[id] = window.setTimeout(() => {
+      setRipples((prev) => prev.filter((r) => r.id !== id));
+      delete rippleTimersRef.current[id];
+    }, 550);
+  };
+
   const togglePlay = async () => {
     const el = videoRef.current;
     if (!el) return;
+
+    const limit = watchLimitSecondsRef.current;
+    if (limit !== null && limitTriggeredRef.current) {
+      setShowControls(true);
+      onWatchLimitReached?.();
+      return;
+    }
 
     try {
       if (el.paused) {
@@ -422,6 +486,11 @@ export default function VideoPlayer({
       clearSeekToast();
       clearLongPressTimer();
       clearMouseClickTimer();
+      clearTapTimer();
+      for (const t of Object.values(rippleTimersRef.current)) {
+        window.clearTimeout(t);
+      }
+      rippleTimersRef.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -608,32 +677,63 @@ export default function VideoPlayer({
         // Touch: single tap toggles play/pause, double tap seeks.
         const rect = containerRef.current?.getBoundingClientRect();
         const x = rect ? e.clientX - rect.left : e.clientX;
+        const y = rect ? e.clientY - rect.top : e.clientY;
         const now = Date.now();
+        spawnRipple(x, y);
+
+        const width = rect?.width || window.innerWidth;
+        const region: "left" | "center" | "right" =
+          x < width / 3 ? "left" : x < (2 * width) / 3 ? "center" : "right";
+
         const last = lastTouchRef.current;
+        const isContinuation =
+          Boolean(last) && now - (last?.time || 0) < 350 && (last?.region || region) === region;
+        const count = isContinuation ? (last?.count || 1) + 1 : 1;
+        lastTouchRef.current = { time: now, x, count, region };
 
-        if (last && now - last.time < 300 && Math.abs(x - last.x) < 40) {
-          lastTouchRef.current = null;
-          const isLeft = rect ? x < rect.width / 2 : x < window.innerWidth / 2;
-          if (isLeft) {
-            seekBy(-10);
-            showSeekToast("-10s");
-          } else {
-            seekBy(10);
-            showSeekToast("+10s");
-          }
-          setShowControls(true);
-          scheduleHide();
-          return;
-        }
-
-        lastTouchRef.current = { time: now, x };
-        window.setTimeout(() => {
+        clearTapTimer();
+        tapTimerRef.current = window.setTimeout(() => {
           if (lastTouchRef.current?.time !== now) return;
+          const payload = lastTouchRef.current;
           lastTouchRef.current = null;
+
+          if (payload?.count >= 3) {
+            if (payload.region === "left") {
+              document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
+              showSeekToast("Comments");
+            } else if (payload.region === "center") {
+              onNext?.();
+              showSeekToast("Next");
+            } else {
+              try {
+                window.close();
+              } catch {
+                // ignore
+              }
+              showSeekToast("Close");
+            }
+            setShowControls(true);
+            scheduleHide();
+            return;
+          }
+
+          if (payload?.count === 2) {
+            if (payload.region === "left") {
+              seekBy(-10);
+              showSeekToast("-10s");
+            } else {
+              seekBy(10);
+              showSeekToast("+10s");
+            }
+            setShowControls(true);
+            scheduleHide();
+            return;
+          }
+
           void togglePlay();
           setShowControls(true);
           scheduleHide();
-        }, 310);
+        }, 340);
       }}
       onMouseMove={() => {
         setShowControls(true);
@@ -651,6 +751,13 @@ export default function VideoPlayer({
         void toggleFullscreen();
       }}
     >
+      {ripples.map((r) => (
+        <span
+          key={r.id}
+          className="pointer-events-none absolute z-20 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 animate-ping"
+          style={{ left: r.x, top: r.y }}
+        />
+      ))}
       <video
         ref={videoRef}
         className="h-full w-full object-contain"

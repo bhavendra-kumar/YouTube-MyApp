@@ -16,12 +16,14 @@ import {
 	login,
 	logout,
 	getMyDownloads,
+	searchUsers,
 	me,
 	refresh,
 	register,
 	updateChannelMedia,
 	updateprofile,
 } from "../controllers/auth.js";
+import { sendOtp, verifyOtp } from "../controllers/otp.js";
 
 const routes = express.Router();
 
@@ -31,6 +33,7 @@ routes.post("/refresh", validate(refreshSchema), asyncHandler(refresh));
 routes.post("/logout", validate(logoutSchema), asyncHandler(logout));
 routes.get("/me", authMiddleware, asyncHandler(me));
 routes.get("/downloads", authMiddleware, asyncHandler(getMyDownloads));
+routes.get("/search", authMiddleware, asyncHandler(searchUsers));
 
 // Minimal admin-only route to demonstrate RBAC
 routes.get(
@@ -54,5 +57,8 @@ routes.post(
 	]),
 	asyncHandler(updateChannelMedia)
 );
+
+routes.post("/otp/send", asyncHandler(sendOtp));
+routes.post("/otp/verify", asyncHandler(verifyOtp));
 
 export default routes;

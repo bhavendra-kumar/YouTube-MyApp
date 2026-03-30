@@ -12,17 +12,20 @@ function isLocalhostHostname(hostname: string): boolean {
 export function getSocket(): Socket {
   if (socket) return socket;
 
+  const isBrowser = typeof window !== "undefined";
+
   const backendUrl = getPublicBackendUrl();
 
   // Production-safe behavior: Socket.IO must point at the deployed backend.
   // If this is missing in production, don't silently connect to the Vercel origin.
-  if (!backendUrl && process.env.NODE_ENV === "production") {
+  // NOTE: getSocket() can be called during SSR/prerender (e.g. via useMemo), so we only hard-fail in the browser.
+  if (isBrowser && !backendUrl && process.env.NODE_ENV === "production") {
     throw new Error(
       "Missing NEXT_PUBLIC_BACKEND_URL in production. Set it in Vercel for both Production and Preview to your HTTPS Render backend URL."
     );
   }
 
-  if (backendUrl && process.env.NODE_ENV === "production") {
+  if (isBrowser && backendUrl && process.env.NODE_ENV === "production") {
     try {
       const parsed = new URL(backendUrl);
       if (isLocalhostHostname(parsed.hostname)) {

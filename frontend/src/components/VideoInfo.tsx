@@ -31,6 +31,8 @@ import { notify } from "@/services/toast";
 import Link from "next/link";
 import { buildMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import UpgradeToPremiumButton from "@/components/UpgradeToPremiumButton";
+import { requestVideoDownload, triggerBrowserDownload } from "@/services/downloads";
 
 const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [likes, setlikes] = useState<number>(Number(video?.Like ?? 0));
@@ -38,7 +40,7 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
@@ -49,6 +51,7 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [startAtEnabled, setStartAtEnabled] = useState(false);
   const [startAtTime, setStartAtTime] = useState("0:00");
   const shareWasOpenRef = useRef(false);
@@ -503,15 +506,59 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
 
     try {
       setDownloading(true);
-      const res = await axiosClient.post(`/video/download/${video._id}`);
-      notify.success(res.data?.message || "Video downloaded successfully");
+      notify.info("Starting download…");
+
+      const data = await requestVideoDownload(String(video._id));
+      const rawPath = String(data?.downloadUrl || data?.path || "").trim();
+      if (!rawPath) {
+        notify.error("Download URL unavailable");
+        return;
+      }
+
+      const url = buildMediaUrl(rawPath);
+      const filename = String(video?.videotitle || "video").trim() || "video";
+      await triggerBrowserDownload(url, filename);
+
+      // Keep UI counters responsive (backend enforces the real limit)
+      const plan = String(user?.plan || "FREE").toUpperCase();
+      const isPremiumUser = Boolean(user?.isPremium) || ["BRONZE", "SILVER", "GOLD", "PREMIUM"].includes(plan);
+      if (!isPremiumUser) {
+        updateUser({
+          downloadsToday: (typeof user?.downloadsToday === "number" ? user.downloadsToday : 0) + 1,
+          dailyDownloadCount: (typeof user?.dailyDownloadCount === "number" ? user.dailyDownloadCount : 0) + 1,
+          lastDownloadDate: new Date().toISOString(),
+        });
+      }
+
+      notify.success(data?.message || "Download started");
     } catch (e: any) {
       console.error(e);
-      notify.error(e?.response?.data?.message || "Download failed");
+      const status = e?.response?.status;
+      const message = e?.response?.data?.message;
+
+      if (status === 403 && typeof message === "string" && /download limit|upgrade/i.test(message)) {
+        notify.error(message);
+        setUpgradePromptOpen(true);
+        return;
+      }
+
+      notify.error(message || "Download failed");
     } finally {
       setDownloading(false);
     }
   };
+
+  const plan = String(user?.plan || "FREE").toUpperCase();
+  const isPremiumUser = Boolean(user?.isPremium) || ["BRONZE", "SILVER", "GOLD", "PREMIUM"].includes(plan);
+  const downloadsUsedToday = (() => {
+    const last = user?.lastDownloadDate ? new Date(user.lastDownloadDate) : null;
+    if (!last || Number.isNaN(last.getTime())) return 0;
+    const sameLocalDay = new Date().toDateString() === last.toDateString();
+    if (!sameLocalDay) return 0;
+    const raw = typeof user?.downloadsToday === "number" ? user.downloadsToday : typeof user?.dailyDownloadCount === "number" ? user.dailyDownloadCount : 0;
+    return Number.isFinite(raw) ? raw : 0;
+  })();
+  const remainingDownloadsToday = isPremiumUser ? null : Math.max(0, 1 - downloadsUsedToday);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -832,7 +879,32 @@ const VideoInfo = ({ video, currentTimeSeconds }: any) => {
           >
             <Download className="w-5 h-5 mr-2" />
             {downloading ? "Downloading…" : "Download"}
+            {user?._id ? (
+              isPremiumUser ? (
+                <span className="ml-2 rounded-full bg-background px-2 py-0.5 text-[10px] font-medium text-primary">
+                  Premium
+                </span>
+              ) : (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {typeof remainingDownloadsToday === "number" ? `${remainingDownloadsToday}/1 today` : ""}
+                </span>
+              )
+            ) : null}
           </Button>
+
+          <Dialog open={upgradePromptOpen} onOpenChange={setUpgradePromptOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Upgrade to download more</DialogTitle>
+              </DialogHeader>
+              <div className="text-sm text-muted-foreground">
+                Free users can download 1 video per day. Upgrade to unlock unlimited downloads.
+              </div>
+              <div className="pt-2">
+                <UpgradeToPremiumButton />
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="ghost" size="icon" className="rounded-full bg-muted">
             <MoreHorizontal className="w-5 h-5" />
           </Button>

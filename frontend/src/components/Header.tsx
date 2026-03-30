@@ -412,6 +412,11 @@ const Header = () => {
                                         <div className="truncate text-xs text-muted-foreground">
                                             {user.email || ""}
                                         </div>
+                                        {(Boolean(user?.isPremium) || ["BRONZE", "SILVER", "GOLD", "PREMIUM"].includes(String(user?.plan || "").toUpperCase())) ? (
+                                            <div className="mt-2 inline-flex items-center rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-primary">
+                                                Premium User
+                                            </div>
+                                        ) : null}
                                         <button
                                             type="button"
                                             className="mt-2 text-sm font-medium text-primary hover:underline"

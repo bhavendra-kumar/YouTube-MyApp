@@ -1,5 +1,4 @@
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 import mongoose from "mongoose";
 
 import User from "../models/user.js";
@@ -11,10 +10,9 @@ import { sendSuccess } from "../utils/apiResponse.js";
 import { getRefreshCookieOptions } from "../utils/cookies.js";
 import {
   hashToken,
-  signAccessToken,
-  signRefreshToken,
   verifyRefreshToken,
 } from "../services/tokens.js";
+import { issueTokensForUser } from "../services/sessionTokens.js";
 import { uploadThumbnailFile } from "../services/uploadService.js";
 
 function escapeRegex(input) {
@@ -63,33 +61,7 @@ async function getSafeUserById(userId) {
   return User.findById(userId).select("-passwordHash").lean();
 }
 
-async function issueTokensForUser(res, user) {
-  const accessToken = signAccessToken(user);
-
-  const expiresAt = new Date(
-    Date.now() + durationToMs(env.refreshTokenTtl, 1000 * 60 * 60 * 24 * 30)
-  );
-
-  // NOTE: `RefreshToken.tokenHash` is unique. Using a constant placeholder
-  // (like "pending") can race when multiple logins happen concurrently.
-  // We generate a unique placeholder upfront and then replace it with the
-  // real hash once the signed refresh token is created.
-  const placeholderHash = crypto.randomBytes(32).toString("hex");
-  const tokenDoc = await RefreshToken.create({
-    user: user._id,
-    tokenHash: placeholderHash,
-    expiresAt,
-  });
-
-  const refreshToken = signRefreshToken(user, tokenDoc._id);
-  const refreshHash = hashToken(refreshToken);
-  await RefreshToken.findByIdAndUpdate(tokenDoc._id, {
-    $set: { tokenHash: refreshHash },
-  });
-
-  setRefreshCookie(res, refreshToken);
-  return { accessToken, refreshHash };
-}
+// NOTE: token issuing moved to ../services/sessionTokens.js
 
 export const register = async (req, res) => {
   const { email, password, name, image } = req.body;
@@ -140,10 +112,12 @@ export const login = async (req, res) => {
   const finalUser = await getSafeUserById(finalUserId);
   if (!finalUser) throw new AppError("User not found", 500);
 
-  const { accessToken } = await issueTokensForUser(res, finalUser);
+  // Social login is gated behind OTP verification.
+  // We return the user record so the frontend can trigger OTP sending,
+  // but we do NOT issue access/refresh tokens here.
   return sendSuccess(
     res,
-    { result: finalUser, token: accessToken },
+    { otpRequired: true, userId: String(finalUserId), result: finalUser },
     existingUser ? 200 : 201
   );
 };
@@ -335,5 +309,42 @@ export const getMyDownloads = async (req, res) => {
     .sort((a, b) => new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime());
 
   return sendSuccess(res, { items: sorted }, 200);
+};
+
+export const searchUsers = async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) throw new AppError("Unauthorized", 401);
+
+  const q = String(req.query?.q || "").trim();
+  if (!q) {
+    return sendSuccess(res, { items: [] }, 200);
+  }
+
+  const safe = escapeRegex(q);
+  const rx = new RegExp(safe, "i");
+
+  const items = await User.find({
+    _id: { $ne: userId },
+    $or: [{ channelname: rx }, { name: rx }, { email: rx }],
+  })
+    .select("_id channelname name email image")
+    .limit(20)
+    .lean();
+
+  return sendSuccess(
+    res,
+    {
+      items: Array.isArray(items)
+        ? items.map((u) => ({
+            _id: u._id,
+            channelname: u.channelname,
+            name: u.name,
+            email: u.email,
+            image: u.image,
+          }))
+        : [],
+    },
+    200
+  );
 };
 

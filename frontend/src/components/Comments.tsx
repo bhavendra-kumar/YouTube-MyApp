@@ -210,7 +210,14 @@ const Comments = ({ videoId }: any) => {
       console.error("Error adding comment:", error);
       setComments((prev) => prev.filter((c) => c._id !== tempId));
       setNewComment(previousText);
-      notify.error("Could not post comment");
+      const status = (error as any)?.response?.status;
+      const message = String((error as any)?.response?.data?.message || "").trim();
+      if (status === 400 && message) {
+        // Backend moderation rejects special characters with a 400 + message.
+        notify.error(message);
+      } else {
+        notify.error("Could not post comment");
+      }
     } finally {
       setIsSubmitting(false);
     }

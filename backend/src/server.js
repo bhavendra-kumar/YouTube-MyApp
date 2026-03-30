@@ -25,6 +25,7 @@ import subscriptionroutes from "./routes/subscription.js";
 import playlistroutes from "./routes/playlist.js";
 import communityroutes from "./routes/community.js";
 import downloadroutes from "./routes/downloads.js";
+import apiroutes from "./routes/api.js";
 
 import Like from "./models/like.js";
 import Dislike from "./models/dislike.js";
@@ -62,6 +63,7 @@ server.on("error", (err) => {
 app.use("/user", userroutes);
 app.use("/video", videoroutes);
 app.use("/downloads", downloadroutes);
+app.use("/api", apiroutes);
 app.use("/payment", paymentroutes);
 app.use("/like", likeroutes);
 app.use("/watch", watchlaterroutes);
@@ -121,38 +123,6 @@ async function listenWithFallback(startPort) {
       if (!isAddrInUse || !allowFallback || isLastAttempt) {
         if (isAddrInUse) {
           throw new Error(buildPortInUseMessage(port));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          
         }
 
         throw err;

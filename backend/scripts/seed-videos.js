@@ -4,6 +4,31 @@ import { env } from "../src/config/env.js";
 import User from "../src/models/user.js";
 import Video from "../src/models/video.js";
 
+function isSrvLookupFailure(err) {
+  const msg = String(err?.message || "");
+  return (
+    msg.includes("querySrv") ||
+    msg.includes("_mongodb._tcp") ||
+    msg.includes("ENOTFOUND") ||
+    msg.includes("ECONNREFUSED")
+  );
+}
+
+function redactMongoUri(uri) {
+  const raw = String(uri || "");
+  if (!raw) return "";
+  try {
+    const withoutProto = raw.replace(/^mongodb\+srv:\/\//i, "").replace(/^mongodb:\/\//i, "");
+    const atIndex = withoutProto.lastIndexOf("@");
+    const hostAndAfter = atIndex >= 0 ? withoutProto.slice(atIndex + 1) : withoutProto;
+    const hostOnly = hostAndAfter.split("/")[0];
+    const proto = /^mongodb\+srv:\/\//i.test(raw) ? "mongodb+srv://" : "mongodb://";
+    return `${proto}${hostOnly}`;
+  } catch {
+    return "mongodb://<redacted>";
+  }
+}
+
 function requireEnv(name) {
   const value = env[name] ?? process.env[name];
   if (!value) throw new Error(`Missing required env var: ${name}`);
@@ -247,7 +272,24 @@ const shortPool = [
 
 async function main() {
   const DB_URL = env.dbUrl || requireEnv("DB_URL");
-  await mongoose.connect(DB_URL);
+  const FALLBACK = process.env.DB_URL_FALLBACK;
+
+  try {
+    await mongoose.connect(DB_URL);
+  } catch (err) {
+    const allowFallback = Boolean(FALLBACK) && isSrvLookupFailure(err);
+    if (!allowFallback) throw err;
+
+    console.warn(
+      [
+        "[seed] Primary DB_URL failed (likely DNS/SRV lookup issue).",
+        `       primary: ${redactMongoUri(DB_URL)}`,
+        "[seed] Retrying with DB_URL_FALLBACK...",
+      ].join("\n")
+    );
+
+    await mongoose.connect(String(FALLBACK));
+  }
 
   const force =
     process.argv.includes("--force") ||

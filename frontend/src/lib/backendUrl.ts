@@ -10,7 +10,18 @@ function isLocalhostHost(hostname: string): boolean {
 
 export function getPublicBackendUrl(): string {
   const raw = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim();
-  if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  const isEffectivelyEmpty = !raw || lowered === "undefined" || lowered === "null";
+
+  if (isEffectivelyEmpty) {
+    // In local dev, default to the backend dev server.
+    if (process.env.NODE_ENV !== "production") {
+      return "http://localhost:5002";
+    }
+    return "";
+  }
+
+  const isBrowser = typeof window !== "undefined";
 
   try {
     const parsed = new URL(raw);
@@ -24,7 +35,7 @@ export function getPublicBackendUrl(): string {
       parsed.protocol = "https:";
     }
 
-    if (process.env.NODE_ENV === "production" && isLocalhostHost(parsed.hostname)) {
+    if (isBrowser && process.env.NODE_ENV === "production" && isLocalhostHost(parsed.hostname)) {
       // eslint-disable-next-line no-console
       console.error(
         "NEXT_PUBLIC_BACKEND_URL points to localhost in production. Update it to your HTTPS Render URL."

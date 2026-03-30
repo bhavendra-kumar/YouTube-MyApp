@@ -4,10 +4,12 @@ import { Button } from "./ui/button";
 import axiosClient from "@/services/http/axios";
 import { notify } from "@/services/toast";
 import { buildMediaUrl } from "@/lib/media";
+import { useCall } from "@/context/CallContext";
 
 const ChannelHeader = ({ channel, user }: any) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
+  const { startCall } = useCall();
 
   const channelId = channel?._id;
 
@@ -119,6 +121,24 @@ const ChannelHeader = ({ channel, user }: any) => {
 
           {user && user?._id !== channel?._id && (
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!user?._id) {
+                    notify.info("Sign in to call");
+                    return;
+                  }
+                  if (!channel?._id) return;
+                  startCall({
+                    _id: String(channel._id),
+                    channelname: channel?.channelname,
+                    name: channel?.name,
+                    image: channel?.image,
+                  });
+                }}
+              >
+                Call
+              </Button>
               <Button
                 onClick={handleSubscribe}
                 variant={isSubscribed ? "outline" : "default"}

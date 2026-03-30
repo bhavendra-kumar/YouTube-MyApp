@@ -26,7 +26,7 @@ const DownloadsPage: NextPageWithAuth = () => {
   const load = async () => {
     try {
       setLoading(true);
-      const res = await axiosClient.get("/downloads/my");
+      const res = await axiosClient.get("/api/downloads");
       const next = Array.isArray(res.data) ? (res.data as DownloadRow[]) : [];
       setItems(next);
     } catch (e: any) {

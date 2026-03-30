@@ -3,8 +3,17 @@ import ErrorState from "@/components/ErrorState";
 import RelatedVideos from "@/components/RelatedVideos";
 import VideoInfo from "@/components/VideoInfo";
 import Videopplayer from "@/components/Videopplayer";
+import UpgradeToPremiumButton from "@/components/UpgradeToPremiumButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useUser } from "@/context/AuthContext";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import WatchPageSkeleton from "@/features/watch/components/WatchPageSkeleton";
 import { useWatchPageData } from "@/features/watch/hooks/useWatchPageData";
@@ -47,17 +56,36 @@ const index = () => {
   const router = useRouter();
   const { id } = router.query;
 
+  const { user } = useUser();
+
   const [theaterMode, setTheaterMode] = useState(false);
   const [playbackSeconds, setPlaybackSeconds] = useState(0);
+  const [watchLimitOpen, setWatchLimitOpen] = useState(false);
 
   const videoId = router.isReady && typeof id === "string" ? id : null;
   const { video: currentVideo, relatedVideos, loading, error, reload } = useWatchPageData<any>(videoId);
+
+  const watchLimitSeconds = useMemo(() => {
+    const plan = String(user?.plan || "FREE").toUpperCase();
+    if (plan === "GOLD" || plan === "PREMIUM") return null;
+    if (plan === "SILVER") return 10 * 60;
+    if (plan === "BRONZE") return 7 * 60;
+    return 5 * 60; // FREE
+  }, [user?.plan]);
+
+  const watchLimitLabel = useMemo(() => {
+    if (watchLimitSeconds == null) return "Unlimited";
+    const min = Math.floor(watchLimitSeconds / 60);
+    return `${min} minutes per video`;
+  }, [watchLimitSeconds]);
 
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
 
   useEffect(() => {
     if (!videoId) return;
+    setPlaybackSeconds(0);
+    setWatchLimitOpen(false);
     const state = readWatchQueue();
 
     // If the video exists somewhere in the queue, move pointer to it.
@@ -88,6 +116,13 @@ const index = () => {
     setCanPrev(index > 0);
     setCanNext(index < ids.length - 1 || (Array.isArray(relatedVideos) && relatedVideos.length > 0));
   }, [videoId, relatedVideos]);
+
+  useEffect(() => {
+    // If the user upgrades while the modal is open, dismiss it.
+    if (watchLimitOpen && watchLimitSeconds == null) {
+      setWatchLimitOpen(false);
+    }
+  }, [watchLimitOpen, watchLimitSeconds]);
 
   const goPrev = () => {
     const state = readWatchQueue();
@@ -194,7 +229,22 @@ const index = () => {
               canPrev={canPrev}
               canNext={canNext}
               onPlaybackTimeChange={setPlaybackSeconds}
+              watchLimitSeconds={watchLimitSeconds}
+              onWatchLimitReached={() => setWatchLimitOpen(true)}
             />
+
+            <Dialog open={watchLimitOpen} onOpenChange={setWatchLimitOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Watch limit reached</DialogTitle>
+                  <DialogDescription>
+                    Your current plan allows {watchLimitLabel}. Upgrade to keep watching.
+                  </DialogDescription>
+                </DialogHeader>
+                <UpgradeToPremiumButton />
+              </DialogContent>
+            </Dialog>
+
             <VideoInfo video={currentVideo} currentTimeSeconds={playbackSeconds} />
             <div id="comments">
               <Comments videoId={videoId} />

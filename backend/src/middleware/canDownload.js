@@ -31,9 +31,15 @@ export const canDownloadVideo = async (req, res, next) => {
     downloadedAt: now,
   };
 
-  // PREMIUM: always allowed.
+  // Premium users (either `isPremium` or paid plan) are always allowed.
   const premiumUpdated = await User.findOneAndUpdate(
-    { _id: userId, plan: "PREMIUM" },
+    {
+      _id: userId,
+      $or: [
+        { isPremium: true },
+        { plan: { $in: ["PREMIUM", "BRONZE", "SILVER", "GOLD"] } },
+      ],
+    },
     {
       $set: { lastDownloadDate: now },
       $push: { downloadHistory: historyEntry },
@@ -63,8 +69,10 @@ export const canDownloadVideo = async (req, res, next) => {
       },
       {
         $set: {
+          isPremium: false,
           plan: "FREE",
           downloadsToday: 1,
+          dailyDownloadCount: 1,
           lastDownloadDate: now,
         },
         $push: { downloadHistory: historyEntry },
@@ -86,8 +94,8 @@ export const canDownloadVideo = async (req, res, next) => {
           ],
         },
         {
-          $set: { plan: "FREE", lastDownloadDate: now },
-          $inc: { downloadsToday: 1 },
+          $set: { isPremium: false, plan: "FREE", lastDownloadDate: now },
+          $inc: { downloadsToday: 1, dailyDownloadCount: 1 },
           $push: { downloadHistory: historyEntry },
         },
         { new: true }
@@ -98,7 +106,7 @@ export const canDownloadVideo = async (req, res, next) => {
       if (!sameDayUpdated) {
         return next(
           new AppError(
-            "Daily download limit reached. Upgrade to Premium.",
+            "Upgrade to Premium to download unlimited videos",
             403
           )
         );

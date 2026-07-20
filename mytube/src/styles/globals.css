@@ -1,0 +1,619 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Roboto", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  /* MyTube Brand Colors */
+  --yt-red: #ff0000;
+  --yt-red-hover: #cc0000;
+  --yt-dark-bg: #0f0f0f;
+  --yt-card: #1f1f1f;
+  --yt-border: #2f2f2f;
+  --yt-hover: #272727;
+  --yt-chip-active: #f1f1f1;
+  --yt-chip-active-text: #0f0f0f;
+}
+
+/* ===========================
+   LIGHT MODE (YouTube Light)
+   =========================== */
+:root {
+  --radius: 0.5rem;
+  --yt-bottom-nav-h: 56px;
+
+  /* Light mode - YouTube-like */
+  --background: #ffffff;
+  --foreground: #0f0f0f;
+  --card: #ffffff;
+  --card-foreground: #0f0f0f;
+  --popover: #ffffff;
+  --popover-foreground: #0f0f0f;
+  --primary: #0f0f0f;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #0f0f0f;
+  --muted: #f2f2f2;
+  --muted-foreground: #606060;
+  --accent: #f2f2f2;
+  --accent-foreground: #0f0f0f;
+  --destructive: #ff0000;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #0f0f0f;
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f0f0f;
+  --sidebar-primary: #ff0000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f2f2f2;
+  --sidebar-accent-foreground: #0f0f0f;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0f0f0f;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --yt-bottom-nav-h: 0px;
+  }
+}
+
+/* ===========================
+   DARK MODE (YouTube Dark)
+   =========================== */
+.dark {
+  --background: #0f0f0f;
+  --foreground: #f1f1f1;
+  --card: #1f1f1f;
+  --card-foreground: #f1f1f1;
+  --popover: #1f1f1f;
+  --popover-foreground: #f1f1f1;
+  --primary: #f1f1f1;
+  --primary-foreground: #0f0f0f;
+  --secondary: #272727;
+  --secondary-foreground: #f1f1f1;
+  --muted: #272727;
+  --muted-foreground: #aaaaaa;
+  --accent: #272727;
+  --accent-foreground: #f1f1f1;
+  --destructive: #ff4444;
+  --border: #2f2f2f;
+  --input: #2f2f2f;
+  --ring: #717171;
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #f1f1f1;
+  --sidebar-primary: #ff0000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #272727;
+  --sidebar-accent-foreground: #f1f1f1;
+  --sidebar-border: #2f2f2f;
+  --sidebar-ring: #717171;
+}
+
+/* ===========================
+   BASE STYLES
+   =========================== */
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: "Roboto", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    padding-bottom: calc(var(--yt-bottom-nav-h) + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+
+  /* YouTube-style scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.4);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.7);
+  }
+
+  /* Hide scrollbar for category chips */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ===========================
+   YOUTUBE-STYLE COMPONENTS
+   =========================== */
+
+/* Video thumbnail hover scale */
+.yt-thumbnail-hover {
+  transition: transform 200ms ease;
+}
+.yt-thumbnail-hover:hover {
+  transform: scale(1.05);
+}
+
+/* YouTube chip style — border-radius: 10px matches YouTube exactly */
+.yt-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem; /* h-8 */
+  padding: 0 0.75rem; /* px-3 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: color 150ms, background-color 150ms;
+  border-radius: 10px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.yt-chip:hover {
+  background: var(--muted-foreground);
+  color: var(--background);
+}
+
+.yt-chip-active {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.dark .yt-chip {
+  background: #272727;
+  color: #f1f1f1;
+}
+
+.dark .yt-chip:hover {
+  background: #3f3f3f;
+}
+
+.dark .yt-chip-active {
+  background: #f1f1f1;
+  color: #0f0f0f;
+}
+
+/* YouTube red button */
+.yt-btn-red {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem; /* h-9 */
+  padding: 0 1rem; /* px-4 */
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+  user-select: none;
+  background: #ff0000;
+  color: #ffffff;
+}
+
+.yt-btn-red:hover {
+  background: #cc0000;
+}
+
+/* Subscribe button */
+.yt-btn-subscribe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+  user-select: none;
+  background: #ff0000;
+  color: #ffffff;
+}
+
+.yt-btn-subscribed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  padding: 0 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+  user-select: none;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.yt-btn-subscribed:hover {
+  background: var(--muted-foreground);
+  color: var(--background);
+}
+
+/* Like button animation */
+@keyframes like-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.like-pop {
+  animation: like-pop 0.2s ease-out;
+}
+
+/* Skeleton pulse */
+.yt-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--muted) 80%, var(--foreground)) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Sidebar item */
+.yt-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* gap-4 = 16px */
+  width: 100%;
+  height: 2.5rem; /* h-10 = 40px */
+  padding: 0 0.75rem; /* px-3 */
+  font-size: 0.875rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 100ms, color 100ms;
+  border-radius: 10px;
+}
+
+.yt-sidebar-item:hover {
+  background: var(--accent);
+}
+
+.yt-sidebar-item-active {
+  background: var(--accent);
+  font-weight: 500;
+}
+
+/* Duration badge */
+.yt-duration {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.125rem 0.375rem;
+  border-radius: 2px;
+}
+
+/* Video card 3-dot menu */
+.yt-video-menu {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.group:hover .yt-video-menu {
+  opacity: 1;
+}
+
+/* Header search bar */
+.yt-search-input {
+  height: 2.5rem;
+  flex: 1 1 0%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+.yt-search-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Theater mode body class */
+body.theater-mode .yt-sidebar {
+  display: none;
+}
+
+/* Notification badge */
+.yt-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  min-width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: #ff0000;
+  color: white;
+}
+
+/* Page fade-in */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: page-fade-in 0.2s ease-out;
+}
+
+/* Progress bar for video processing */
+.yt-progress-bar {
+  height: 0.25rem;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--muted);
+}
+
+.yt-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: all 300ms;
+  background: #ff0000;
+}
+
+/* Tooltip */
+.yt-tooltip {
+  position: absolute;
+  z-index: 50;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  pointer-events: none;
+  white-space: nowrap;
+  background: rgba(28, 28, 28, 0.9);
+  color: #f1f1f1;
+}
+
+/* Live badge */
+.yt-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #ff0000;
+  color: white;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+a, button {
+  transition: color 100ms, background-color 100ms;
+}
+
+/* Line clamp utilities — include both standard and webkit for compatibility */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* Watch page layout — fluid two-column like YouTube */
+.yt-watch-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .yt-watch-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .yt-watch-primary {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .yt-watch-secondary {
+    flex: 0 0 402px;
+    width: 402px;
+  }
+}
+
+/* Like/Dislike pill — YouTube uses a single rounded container */
+.yt-action-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  overflow: hidden;
+  user-select: none;
+  background: var(--secondary);
+}
+
+.yt-action-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem; /* gap-1.5 */
+  height: 2.25rem; /* h-9 */
+  padding: 0 1rem; /* px-4 */
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 100ms, color 100ms;
+}
+
+.yt-action-pill-btn:hover {
+  background: var(--muted-foreground);
+  color: var(--background);
+}
+
+.dark .yt-action-pill {
+  background: #272727;
+}
+
+.dark .yt-action-pill-btn:hover {
+  background: #3f3f3f;
+  color: #f1f1f1;
+}
+
+.yt-action-pill-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Secondary action buttons (Share, Download, Save, etc.) */
+.yt-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem; /* gap-2 */
+  height: 2.25rem; /* h-9 */
+  padding: 0 1rem; /* px-4 */
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 100ms, color 100ms;
+  user-select: none;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.yt-action-btn:hover {
+  background: var(--muted-foreground);
+  color: var(--background);
+}
+
+.dark .yt-action-btn {
+  background: #272727;
+  color: #f1f1f1;
+}
+
+.dark .yt-action-btn:hover {
+  background: #3f3f3f;
+}
+
+/* Hide on mobile */
+@media (max-width: 767px) {
+  .hide-mobile { display: none !important; }
+}
+
+/* Hide on desktop */
+@media (min-width: 768px) {
+  .hide-desktop { display: none !important; }
+}
